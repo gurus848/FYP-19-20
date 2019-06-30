@@ -8,6 +8,6 @@ Research Notes and Links Google Docs - https://docs.google.com/document/d/1820cl
 
 ## Other Notes
 
-Please use a Python 3.6+ virtual environment for reproducability. 
+Please use a Python 3.6+ virtual environment for reproducibility. Install packages based on the requirements.txt.
 
-Please add stuff to .gitignore as necessary
+Please add stuff to .gitignore as necessary.
