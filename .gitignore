@@ -1,4 +1,7 @@
 venv
 venv/*
 !.empty
-data/*
+.ipynb_checkpoints/
+.ipynb_checkpoints/*
+.idea/
+.idea/*
