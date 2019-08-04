@@ -5,3 +5,5 @@ venv/*
 .ipynb_checkpoints/*
 .idea/
 .idea/*
+notebook/modelling/.ipynb_checkpoints/
+notebook/modelling/.ipynb_checkpoints/*
