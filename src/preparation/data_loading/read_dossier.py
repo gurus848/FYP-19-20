@@ -46,3 +46,4 @@ def read_dossier():
         articles.append(text)
     # return information
     return articles
+
