@@ -7,3 +7,5 @@ venv/*
 .idea/*
 notebook/modelling/.ipynb_checkpoints/
 notebook/modelling/.ipynb_checkpoints/*
+stanford_corenlp_library/
+stanford_corenlp_library/*

@@ -14,4 +14,6 @@ Please add stuff to .gitignore as necessary.
 
 Project structure according to https://towardsdatascience.com/manage-your-data-science-project-structure-in-early-stage-95f91d4d0600. 
 
-For neuralcoref package, might need to install it using 'pip3 uninstall neuralcoref; pip3 install neuralcoref --no-binary neuralcoref'.
+For neuralcoref package, might need to install it using 'pip3 uninstall neuralcoref; pip3 install neuralcoref --no-binary neuralcoref'. It can also likely only be run on Linux.
+
+If using jupyter lab/notebook, make sure that you configure it correctly so that it uses the virtual environment's python interpreter rather than the systemwide on.
