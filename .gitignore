@@ -9,3 +9,9 @@ notebook/modelling/.ipynb_checkpoints/
 notebook/modelling/.ipynb_checkpoints/*
 stanford_corenlp_library/
 stanford_corenlp_library/*
+e2e-coref
+e2e-coref/*
+!e2e-coref/sota_e2e_coref_testing_guru.ipynb
+__pycache__
+__pycache__/
+__pycache__/*
