@@ -1,8 +1,11 @@
 from newspaper import Article
 from bs4 import BeautifulSoup
+import pandas as pd
+import sys
+import os
 
-# TODO: return more of the information rather than just the text.
 
+project_data_folder_path = "../../../data"
 
 def read_news_article(url):
     """
@@ -54,6 +57,10 @@ def read_nyt_article(htmltext):
     article.parse()
     authors = article.authors
 
+    date = article.publish_date
+    if date is not None:
+        date = article.publish_date.strftime('%d/%m/%Y')
+
     # used to find where the article text start - it always starts with a '-'
     while '—' not in ps[i].text:
         i += 1
@@ -76,13 +83,37 @@ def read_nyt_article(htmltext):
     result_dict = {
         'title': title,
         'authors': authors,
-        'text': text
+        'text': text,
+        'date': date,
+        'publisher': 'nytimes'
     }
     return result_dict
 
 
+def process_file_articles(file_list):
+    """
+
+
+
+    :param file_list: list of paths to files which need text and other info extracted from them
+    :return:
+    """
+    csv_file = os.path.join(project_data_folder_path, "extracted_article_data.csv")
+    open(csv_file, 'a').close()  # to create the file if it doesn't exist
+    if os.path.getsize(csv_file) > 0:
+        data = pd.read_csv(csv_file)
+    else:
+        data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
+    for file in file_list:
+        res_dict = read_html_file(file)
+        # d = pd.Series(res_dict)
+        if (data['title'] == res_dict['title']).sum() == 0:
+            data = data.append(res_dict, ignore_index=True)
+    data.to_csv(csv_file, index=False)
+
+
 def main():
-    print(read_html_file('test_nyt.html'))
+    process_file_articles(['test_nyt.html'])
 
 
 if __name__ == '__main__':
