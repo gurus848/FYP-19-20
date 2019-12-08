@@ -3,20 +3,32 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import sys
 import os
+from enum import Enum
 
 
 project_data_folder_path = "../../../data"
 
-def read_news_article(url):
+
+class ArticleType(Enum):
+    NYT = 1
+    FOX = 2
+    OTHER = 3
+    WSJ = 4
+
+
+def read_online_news_article(url):
     """
     Reads a news article from online given a URL
     :return:
     """
 
+    # TODO: make it work better?
+
     article = Article(url)
     article.download()
     article.parse()
     authors = article.authors
+    title = article.title
     date = article.publish_date
     if date is not None:
         date = article.publish_date.strftime('%d/%m/%Y')
@@ -25,20 +37,44 @@ def read_news_article(url):
     article_ascii = article.text.encode('ascii', 'ignore')
     text = article_ascii.decode('utf-8').replace('\n\n', ' ')
 
-    return text
+    result_dict = {
+        'title': title,
+        'authors': authors,
+        'text': text,
+        'date': date,
+        'publisher': None
+    }
+
+    return result_dict
 
 
 def read_html_file(file):
     """
-    returns a string of the html file
+    returns a string of the html file which is stored in the filesystem
 
     :param file: the path to the file
     :return:
     """
 
-    # TODO: make it more generic so that it calls the appropriate function based on the publisher
+    return open(file).read()
 
-    return read_fox_article(open(file).read())
+
+def process_html_file(file):
+    """
+    Processes the file which has been passed to the function.
+
+    :param file:   filepath to the file to be processed
+    :return:
+    """
+    publisher = determine_publisher(file)
+    if publisher == ArticleType.NYT:
+        return read_nyt_article(read_html_file(file))
+    elif publisher == ArticleType.FOX:
+        return read_fox_article(read_html_file(file))
+    elif publisher == ArticleType.WSJ:
+        return read_wsj_article(read_html_file(file))
+    elif publisher == ArticleType.OTHER:
+        return read_other_article(read_html_file(file))
 
 
 def determine_publisher(file):
@@ -48,8 +84,14 @@ def determine_publisher(file):
     :param file:
     :return:
     """
-    # TODO
-    pass
+    soup = BeautifulSoup(read_html_file(file), 'lxml')
+    title = soup.html.head.title.text  # extracts the title
+    if "The New York Times" in title:
+        return ArticleType.NYT
+    elif "Fox News" in title:
+        return ArticleType.FOX
+    else:
+        return ArticleType.OTHER
 
 
 def read_nyt_article(htmltext):
@@ -163,6 +205,16 @@ def read_fox_article(htmltext):
     return result_dict
 
 
+def read_other_article(htmltext):
+    """
+        Processes the articles other than the ones for which specific rules have been written
+    :param htmltext:
+    :return:
+    """
+    # TODO
+    pass
+
+
 def process_file_articles(file_list):
     """
 
@@ -178,14 +230,19 @@ def process_file_articles(file_list):
     else:
         data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
     for file in file_list:
-        res_dict = read_html_file(file)
+        res_dict = process_html_file(file)
         if (data['title'] == res_dict['title']).sum() == 0:
             data = data.append(res_dict, ignore_index=True)
     data.to_csv(csv_file, index=False)
 
 
+def process_online_articles(url_list):
+    # TODO
+    pass
+
+
 def main():
-    process_file_articles(['fox_news_article_example.html'])
+    process_file_articles(['fox_news_article_example.html', 'test_nyt.html'])
 
 
 if __name__ == '__main__':
