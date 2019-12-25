@@ -3,20 +3,32 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import sys
 import os
+from enum import Enum
 
 
 project_data_folder_path = "../../../data"
 
-def read_news_article(url):
+
+class ArticleType(Enum):
+    NYT = 1
+    FOX = 2
+    OTHER = 3
+    WSJ = 4
+
+
+def read_online_news_article(url):
     """
     Reads a news article from online given a URL
     :return:
     """
 
+    # TODO: make it work better?
+
     article = Article(url)
     article.download()
     article.parse()
     authors = article.authors
+    title = article.title
     date = article.publish_date
     if date is not None:
         date = article.publish_date.strftime('%d/%m/%Y')
@@ -25,27 +37,71 @@ def read_news_article(url):
     article_ascii = article.text.encode('ascii', 'ignore')
     text = article_ascii.decode('utf-8').replace('\n\n', ' ')
 
-    return text
+    result_dict = {
+        'title': title,
+        'authors': authors,
+        'text': text,
+        'date': date,
+        'publisher': None
+    }
+
+    return result_dict
 
 
 def read_html_file(file):
     """
-    returns a string of the html file
+    returns a string of the html file which is stored in the filesystem
 
     :param file: the path to the file
     :return:
     """
-    return read_nyt_article(open(file).read())
+
+    return open(file).read()
+
+
+def process_html_file(file):
+    """
+    Processes the file which has been passed to the function.
+
+    :param file:   filepath to the file to be processed
+    :return:
+    """
+    publisher = determine_publisher(file)
+    if publisher == ArticleType.NYT:
+        return read_nyt_article(read_html_file(file))
+    elif publisher == ArticleType.FOX:
+        return read_fox_article(read_html_file(file))
+    elif publisher == ArticleType.WSJ:
+        return read_wsj_article(read_html_file(file))
+    elif publisher == ArticleType.OTHER:
+        return read_other_article(read_html_file(file))
+
+
+def determine_publisher(file):
+    """
+        Determines the published of the particular article pointed to by the file path, so that the appropriate
+        functions can be called in other parts of the code.
+    :param file:
+    :return:
+    """
+    soup = BeautifulSoup(read_html_file(file), 'lxml')
+    title = soup.html.head.title.text  # extracts the title
+    if "The New York Times" in title:
+        return ArticleType.NYT
+    elif "Fox News" in title:
+        return ArticleType.FOX
+    else:
+        return ArticleType.OTHER
 
 
 def read_nyt_article(htmltext):
     """
 
-    uses the string of the article which is passed to it to extract the important information
+    uses the string of the new york times article which is passed to it to extract the important information
 
     :param htmltext: a string which contains the html of the new york times article
 
-    :return:
+    :return:   returns a dict which stores the extracted result
     """
     soup = BeautifulSoup(htmltext, 'lxml')
     title = soup.html.head.title.text  # extracts the title
@@ -57,7 +113,7 @@ def read_nyt_article(htmltext):
     article.parse()
     authors = article.authors
 
-    date = article.publish_date
+    date = article.publish_date  # TODO: date not extracted here properly
     if date is not None:
         date = article.publish_date.strftime('%d/%m/%Y')
 
@@ -78,7 +134,7 @@ def read_nyt_article(htmltext):
     ps = [i for i in ps if 'on Twitter at' not in i.text]
     ps = [i for i in ps if 'contributed reporting' not in i.text]
     ps = [i for i in ps if 'contributed research' not in i.text]
-    text = " ".join([i.text for i in ps])
+    text = " ".join([" ".join(i.text.split()) for i in ps])
 
     result_dict = {
         'title': title,
@@ -90,10 +146,79 @@ def read_nyt_article(htmltext):
     return result_dict
 
 
+def read_wsj_article(htmltext):
+    """
+
+    uses the string of the wall street jounral article which is passed to it to extract the important information
+
+    :param htmltext: a string which contains the html of the wall street journal article
+
+    :return:  returns a dict which stores the extracted result
+    """
+
+    """
+        Wall street journal articles require a subscription to read, so parsing them cannot be done at the moment. We can revisit this if we get access
+        to a wall street journal subscription. 
+    """
+
+    pass
+
+
+def read_fox_article(htmltext):
+    """
+
+    uses the string of the fox news article which is passed to it to extract the important information
+
+    :param htmltext: a string which contains the html of the fox news article
+
+    :return:  returns a dict which stores the extracted result
+    """
+
+    soup = BeautifulSoup(htmltext, 'lxml')
+    title = soup.html.head.title.text  # extracts the title
+    ps = soup.body.find_all('p')
+
+    article = Article('')  # so that you can use local files with newspaper3k
+    article.set_html(htmltext)
+    article.parse()
+    authors = article.authors    # sometimes is extracts stuff like "Reporter for Fox News. Follow Her on Twitter.."
+
+    date = article.publish_date    # TODO: date not extracted here properly
+    if date is not None:
+        date = article.publish_date.strftime('%d/%m/%Y')
+
+    # gets rid of useless sections. should be changed according to each particular website's format
+    ps = [i for i in ps if i.text != '']
+    ps = [i for i in ps if i.text != 'Advertisement']
+    ps = [i for i in ps if 'Now in print:' not in i.text]
+    ps = [i for i in ps if 'This material may not be published,' not in i.text]
+    ps = [i for i in ps if not (i.next_element is not None and (i.next_element.name == 'strong' or i.next_element.name == 'em'))]
+    text = " ".join([" ".join(i.text.split()) for i in ps])
+
+    result_dict = {
+        'title': title,
+        'authors': authors,
+        'text': text,
+        'date': date,
+        'publisher': 'fox'
+    }
+    return result_dict
+
+
+def read_other_article(htmltext):
+    """
+        Processes the articles other than the ones for which specific rules have been written
+    :param htmltext:
+    :return:
+    """
+    # TODO
+    pass
+
+
 def process_file_articles(file_list):
     """
 
-
+        Given a list of filepaths, process all of them and extracts their data and adds it to the csv file.
 
     :param file_list: list of paths to files which need text and other info extracted from them
     :return:
@@ -105,15 +230,19 @@ def process_file_articles(file_list):
     else:
         data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
     for file in file_list:
-        res_dict = read_html_file(file)
-        # d = pd.Series(res_dict)
+        res_dict = process_html_file(file)
         if (data['title'] == res_dict['title']).sum() == 0:
             data = data.append(res_dict, ignore_index=True)
     data.to_csv(csv_file, index=False)
 
 
+def process_online_articles(url_list):
+    # TODO
+    pass
+
+
 def main():
-    process_file_articles(['test_nyt.html'])
+    process_file_articles(['fox_news_article_example.html', 'test_nyt.html'])
 
 
 if __name__ == '__main__':
