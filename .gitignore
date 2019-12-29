@@ -15,3 +15,4 @@ e2e-coref/*
 __pycache__
 __pycache__/
 __pycache__/*
+ec2init.sh

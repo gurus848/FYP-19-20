@@ -66,7 +66,7 @@ def extract_relations():
             rels.append(sample)
     
     with open('Steele_dossier_rels.json', 'w')  as f:
-        f.write(json.dumps(rels)
+        f.write(json.dumps(rels))
 
 if __name__=="__main__":
    rels = extract_relations()
