@@ -4,8 +4,10 @@ from fewshot_re_kit.sentence_encoder import BERTPAIRSentenceEncoder
 from models.pair import Pair
 import os
 import torch
+import spacy
+import neuralcoref
 
-#RUNS USING GPU
+#RUNS USING GPU if available
 
 checkpoint_path = "checkpoint/pair-bert-train_wiki-val_wiki-5-1.pth.tar"
 bert_pretrained_checkpoint = 'bert-base-uncased'
@@ -16,7 +18,10 @@ sentence_encoder = BERTPAIRSentenceEncoder(
                     bert_pretrained_checkpoint,
                     max_length)
 
-model = Pair(sentence_encoder, hidden_size=768).cuda()
+model = Pair(sentence_encoder, hidden_size=768)
+
+if torch.cuda.is_available():
+    model = model.cuda()
 
 def __load_model__(ckpt):
     '''
@@ -30,18 +35,8 @@ def __load_model__(ckpt):
     else:
         raise Exception("No checkpoint found at '%s'" % ckpt)
 
-        
-def item(x):
-    '''
-    PyTorch before and after 0.4
-    '''
-    torch_version = torch.__version__.split('.')
-    if int(torch_version[0]) == 0 and int(torch_version[1]) < 4:
-        return x[0]
-    else:
-        return x.item()
     
-def tokenize(tokens, head_indices, tail_indices):
+def bert_tokenize(tokens, head_indices, tail_indices):
     word = sentence_encoder.tokenize(tokens,
             head_indices,
             tail_indices)
@@ -95,19 +90,36 @@ queries = [{
     'sentence':'washington is the capital of the US','head':'washington','tail':'US'
 }]
 
+nlp = spacy.load("en_core_web_sm")
+neuralcoref.add_to_pipe(nlp)
+
 max_length = 128
 for q in queries:
     fusion_set = {'word': [], 'mask': [], 'seg': []}
-    tokens = q['sentence'].split(" ")  #TODO: generalize, make it tokenize like in the example wikidata, would probably need to use some nlp library to do it
-    head_indices = list(range(tokens.index(q['head']), tokens.index(q['head'])+len(q['head'].split(" "))))   #TODO: make it work with multi-word entities
-    tail_indices = list(range(tokens.index(q['tail']), tokens.index(q['tail'])+len(q['tail'].split(" "))))
-    bert_query_tokens = tokenize(tokens, head_indices, tail_indices)
+    doc = nlp(q['sentence'])
+    doc = nlp(doc._.coref_resolved)  #use neuralcoref to do coreference resolution and then do NER again
+    tokens = list(map(str, doc))
+    
+    #TODO: use NER entities to find all pairs to check
+    
+    tokenized_head = list(map(str, nlp(q['head'])))  #TODO: remove once the NER pair thing has been written.
+    tokenized_tail = list(map(str, nlp(q['tail'])))
+    
+    head_indices = list(range(tokens.index(tokenized_head[0]), tokens.index(tokenized_head[0])+len(tokenized_head)))   
+    tail_indices = list(range(tokens.index(tokenized_tail[0]), tokens.index(tokenized_tail[0])+len(tokenized_tail)))
+    bert_query_tokens = bert_tokenize(tokens, head_indices, tail_indices)
     for relation in example_relation_data:
         for ex in relation['examples']:
-            tokens = ex['sentence'].split(" ")  #TODO: generalize
-            head_indices = list(range(tokens.index(ex['head']), tokens.index(ex['head'])+len(ex['head'].split(" "))))
-            tail_indices = list(range(tokens.index(ex['tail']), tokens.index(ex['tail'])+len(ex['tail'].split(" "))))
-            bert_relation_example_tokens = tokenize(tokens, head_indices, tail_indices)
+            
+            doc = nlp(ex['sentence'])
+            doc = nlp(doc._.coref_resolved)  #use neuralcoref to do coreference resolution, and then do tokenization. coreference resolution is not a perfect process
+            tokens = list(map(str, doc))
+            
+            tokenized_head = list(map(str, nlp(ex['head'])))   #head and tail spelling and punctuation should match the corefered output exactly
+            tokenized_tail = list(map(str, nlp(ex['tail'])))
+            head_indices = list(range(tokens.index(tokenized_head[0]), tokens.index(tokenized_head[0])+len(tokenized_head)))   
+            tail_indices = list(range(tokens.index(tokenized_tail[0]), tokens.index(tokenized_tail[0])+len(tokenized_tail)))
+            bert_relation_example_tokens = bert_tokenize(tokens, head_indices, tail_indices)
             
             SEP = sentence_encoder.tokenizer.convert_tokens_to_ids(['[SEP]'])
             CLS = sentence_encoder.tokenizer.convert_tokens_to_ids(['[CLS]'])
@@ -124,11 +136,18 @@ for q in queries:
             fusion_set['mask'].append(mask_tensor)
             fusion_set['seg'].append(seg_tensor)
     
-    fusion_set['word'] = torch.stack(fusion_set['word']).cuda()
-    fusion_set['seg'] = torch.stack(fusion_set['seg']).cuda()
-    fusion_set['mask'] = torch.stack(fusion_set['mask']).cuda()
+    
+    fusion_set['word'] = torch.stack(fusion_set['word'])
+    fusion_set['seg'] = torch.stack(fusion_set['seg'])
+    fusion_set['mask'] = torch.stack(fusion_set['mask'])
+    
+    if torch.cuda.is_available():
+        fusion_set['word'] = fusion_set['word'].cuda()
+        fusion_set['seg'] = fusion_set['seg'].cuda()
+        fusion_set['mask'] = fusion_set['mask'].cuda()
+        
     logits, pred = model(fusion_set, N, K, 1)
-    print(pred, logits)
+    print('Sentence: \"{}\", prediction: {}'.format(q['sentence'], example_relation_data[pred.item()]['name']))   #todo: handle na case, which would be out of bounds
     
             
             

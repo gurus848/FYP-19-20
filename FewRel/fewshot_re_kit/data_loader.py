@@ -134,7 +134,6 @@ class FewRelDatasetPair(data.Dataset):
         self.max_length = encoder.max_length
 
     def __getraw__(self, item):
-        print(item)
         word = self.encoder.tokenize(item['tokens'],
             item['h'][2][0],
             item['t'][2][0])
