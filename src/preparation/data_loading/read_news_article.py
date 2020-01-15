@@ -217,9 +217,7 @@ def read_other_article(htmltext):
 
 def process_file_articles(file_list):
     """
-
         Given a list of filepaths, process all of them and extracts their data and adds it to the csv file.
-
     :param file_list: list of paths to files which need text and other info extracted from them
     :return:
     """

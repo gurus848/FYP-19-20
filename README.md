@@ -17,3 +17,5 @@ Project structure according to https://towardsdatascience.com/manage-your-data-s
 For neuralcoref package, might need to install it using 'pip3 uninstall neuralcoref; pip3 install neuralcoref --no-binary neuralcoref'. It can also likely only be run on Linux.
 
 If using jupyter lab/notebook, make sure that you configure it correctly so that it uses the virtual environment's python interpreter rather than the systemwide on.
+
+To use `models/OpenNRE`, set the `PYTHONPATH` variable to `/path-to/FYP-19-20/models/OpenNRE` in .bashrc. 
