@@ -48,24 +48,25 @@ class Detector:
         'sentence':"""The US's capital is Washington""",'head':'Washington','tail':'US'
     }]
 
-    def __init__(self):
-        
-        self.checkpoint_path = "checkpoint/pair-bert-train_wiki-val_wiki-5-1.pth.tar"
+    def __init__(self, chpt_path="checkpoint/pair-bert-train_wiki-val_wiki-5-1.pth.tar", max_length=128):
+        """
+            Initializer
+        """
+        self.checkpoint_path = chpt_path
         self.bert_pretrained_checkpoint = 'bert-base-uncased'
-        self.max_length = 128
+        self.max_length = max_length
         self.sentence_encoder = BERTPAIRSentenceEncoder(
                     self.bert_pretrained_checkpoint,
                     self.max_length)
 
         self.model = Pair(self.sentence_encoder, hidden_size=768)
+        if torch.cuda.is_available():
+            self.model = self.model.cuda()
         self.model.eval()
 
-        self.N = 5
-        self.K = 2
-        self.Q = 1
-        self.na_rate = 0
         self.nlp = spacy.load("en_core_web_sm")
         neuralcoref.add_to_pipe(self.nlp)
+        self.load_model()
         
     def __load_model_from_checkpoint__(self,ckpt):
         '''
@@ -87,6 +88,9 @@ class Detector:
         return word
     
     def load_model(self):
+        """
+            Loads the model from the checkpoint
+        """
         state_dict = self.__load_model_from_checkpoint__(self.checkpoint_path)['state_dict']
         own_state = self.model.state_dict()
         for name, param in state_dict.items():
@@ -95,10 +99,16 @@ class Detector:
             own_state[name].copy_(param)
             
     def spacy_tokenize(self,sentence):
+        """
+            Tokenizes the sentence using spacy
+        """
         doc = self.nlp(sentence)
         return list(map(str, self.nlp(doc._.coref_resolved)))
 
     def get_head_tail_pairs(self,sentence):
+        """
+            Gets pairs of heads and tails of named entities so that relation identification can be done on these.
+        """
         acceptable_entity_types = ['PERSON', 'NORP', 'ORG', 'GPE', 'PRODUCT', 'EVENT', 'LAW', 'LOC', 'FAC']
         doc = self.nlp(sentence)
         doc = self.nlp(doc._.coref_resolved)
@@ -108,6 +118,12 @@ class Detector:
         return combinations(entity_info, 2)
     
     def run_detection_algorithm(self, query, example_relation_data):
+        """
+            Runs the algorithm/model on the given query using the given support data.
+        """
+        N = len(example_relation_data)
+        K = len(example_relation_data[0])
+        Q = 1
         head = query['head']
         tail = query['tail']
         fusion_set = {'word': [], 'mask': [], 'seg': []}
@@ -151,14 +167,20 @@ class Detector:
             fusion_set['seg'] = fusion_set['seg'].cuda()
             fusion_set['mask'] = fusion_set['mask'].cuda()
 
-        logits, pred = self.model(fusion_set, self.N, self.K, 1)
-        return (query['sentence'], head, tail, example_relation_data[pred.item()]['name'] if pred.item() < len(example_relation_data) else 'NA')  
-        #returns (sentence, head, tail, prediction relation name)
+        logits, pred = self.model(fusion_set, N, K, Q)
+        return (query['sentence'], head, tail, example_relation_data[pred.item()]['name'] if pred.item() < len(example_relation_data) else 'NA')  #returns (sentence, head, tail, prediction relation name)
         
-        
+    def print_result(self,sentence, head, tail, prediction):
+        """
+            Helper function to print the results to the stdout.
+        """
+        print('Sentence: \"{}\", head: \"{}\", tail: \"{}\", prediction: {}'.format(sentence, head, tail, prediction))
         
     
     def run_on_sample_data(self):
+        """
+            Runs the model on the sample data which is hardcoded in this file.
+        """
         for q in self.queries:
             fusion_set = {'word': [], 'mask': [], 'seg': []}
             tokens = self.spacy_tokenize(q['sentence'])
@@ -167,5 +189,4 @@ class Detector:
             for head, tail in self.get_head_tail_pairs(q['sentence']):  #iterating through all possible combinations of 2 named entities
                 q['head'] = head
                 q['tail'] = tail
-                sentence, h, t, prediction = self.run_detection_algorithm(q, self.example_relation_data)
-                print('Sentence: \"{}\", head: \"{}\", tail: \"{}\", prediction: {}'.format(sentence, h, t, prediction))
+                self.print_result(*self.run_detection_algorithm(q, self.example_relation_data))
