@@ -64,8 +64,9 @@ class Detector:
             self.model = self.model.cuda()
         self.model.eval()
 
-        self.nlp = spacy.load("en_core_web_sm")
-        neuralcoref.add_to_pipe(self.nlp)
+        self.nlp_coref = spacy.load("en_core_web_sm")
+        neuralcoref.add_to_pipe(self.nlp_coref)
+        self.nlp_no_coref = spacy.load("en_core_web_sm")
         self.load_model()
         
     def __load_model_from_checkpoint__(self,ckpt):
@@ -98,20 +99,24 @@ class Detector:
                 continue
             own_state[name].copy_(param)
             
-    def spacy_tokenize(self,sentence):
+    def spacy_tokenize_coref(self,sentence):
         """
             Tokenizes the sentence using spacy
         """
-        doc = self.nlp(sentence)
-        return list(map(str, self.nlp(doc._.coref_resolved)))
+        return list(map(str, self.nlp_coref(sentence)))
+    
+    def spacy_tokenize_no_coref(self,sentence):
+        """
+            Tokenizes the sentence using spacy
+        """
+        return list(map(str, self.nlp_no_coref(sentence)))
 
     def get_head_tail_pairs(self,sentence):
         """
             Gets pairs of heads and tails of named entities so that relation identification can be done on these.
         """
         acceptable_entity_types = ['PERSON', 'NORP', 'ORG', 'GPE', 'PRODUCT', 'EVENT', 'LAW', 'LOC', 'FAC']
-        doc = self.nlp(sentence)
-        doc = self.nlp(doc._.coref_resolved)
+        doc = self.nlp_coref(sentence)
         entity_info = [(X.text, X.label_) for X in doc.ents]
         entity_info = set(map(lambda x:x[0], filter(lambda x:x[1] in acceptable_entity_types, entity_info)))
 
@@ -127,20 +132,49 @@ class Detector:
         head = query['head']
         tail = query['tail']
         fusion_set = {'word': [], 'mask': [], 'seg': []}
-        tokens = self.spacy_tokenize(query['sentence'])
+        tokens = self.spacy_tokenize_coref(query['sentence'])
         
-        tokenized_head = self.spacy_tokenize(head)
-        tokenized_tail = self.spacy_tokenize(tail)
-        head_indices = list(range(tokens.index(tokenized_head[0]), tokens.index(tokenized_head[0])+len(tokenized_head)))   
-        tail_indices = list(range(tokens.index(tokenized_tail[0]), tokens.index(tokenized_tail[0])+len(tokenized_tail)))
+        tokenized_head = self.spacy_tokenize_no_coref(head)
+        tokenized_tail = self.spacy_tokenize_no_coref(tail)
+#         head_indices = list(range(tokens.index(tokenized_head[0]), tokens.index(tokenized_head[0])+len(tokenized_head)))   
+#         tail_indices = list(range(tokens.index(tokenized_tail[0]), tokens.index(tokenized_tail[0])+len(tokenized_tail)))
+        
+        head_indices = None
+        tail_indices = None
+        for i in range(len(tokens)):
+            if tokens[i] == tokenized_head[0] and tokens[i:i+len(tokenized_head)] == tokenized_head:
+                head_indices = list(range(i,i+len(tokenized_head)))
+                break
+        for i in range(len(tokens)):
+            if tokens[i] == tokenized_tail[0] and tokens[i:i+len(tokenized_tail)] == tokenized_tail:
+                tail_indices = list(range(i,i+len(tokenized_tail)))
+                break
+        if head_indices is None or tail_indices is None:
+            raise ValueError
+        
         bert_query_tokens = self.bert_tokenize(tokens, head_indices, tail_indices)
         for relation in example_relation_data:
             for ex in relation['examples']:
-                tokens = self.spacy_tokenize(ex['sentence'])
-                tokenized_head = self.spacy_tokenize(ex['head'])  #head and tail spelling and punctuation should match the corefered output exactly
-                tokenized_tail = self.spacy_tokenize(ex['tail'])
-                head_indices = list(range(tokens.index(tokenized_head[0]), tokens.index(tokenized_head[0])+len(tokenized_head)))
-                tail_indices = list(range(tokens.index(tokenized_tail[0]), tokens.index(tokenized_tail[0])+len(tokenized_tail)))
+                tokens = self.spacy_tokenize_no_coref(ex['sentence'])
+                tokenized_head = self.spacy_tokenize_no_coref(ex['head'])  #head and tail spelling and punctuation should match the corefered output exactly
+                tokenized_tail = self.spacy_tokenize_no_coref(ex['tail'])
+#                 head_indices = list(range(tokens.index(tokenized_head[0]), tokens.index(tokenized_head[0])+len(tokenized_head)))
+#                 tail_indices = list(range(tokens.index(tokenized_tail[0]), tokens.index(tokenized_tail[0])+len(tokenized_tail)))
+                
+                
+                head_indices = None
+                tail_indices = None
+                for i in range(len(tokens)):
+                    if tokens[i] == tokenized_head[0] and tokens[i:i+len(tokenized_head)] == tokenized_head:
+                        head_indices = list(range(i,i+len(tokenized_head)))
+                        break
+                for i in range(len(tokens)):
+                    if tokens[i] == tokenized_tail[0] and tokens[i:i+len(tokenized_tail)] == tokenized_tail:
+                        tail_indices = list(range(i,i+len(tokenized_tail)))
+                        break
+                if head_indices is None or tail_indices is None:
+                    raise ValueError
+                
                 bert_relation_example_tokens = self.bert_tokenize(tokens, head_indices, tail_indices)
 
                 SEP = self.sentence_encoder.tokenizer.convert_tokens_to_ids(['[SEP]'])
@@ -182,10 +216,6 @@ class Detector:
             Runs the model on the sample data which is hardcoded in this file.
         """
         for q in self.queries:
-            fusion_set = {'word': [], 'mask': [], 'seg': []}
-            tokens = self.spacy_tokenize(q['sentence'])
-
-
             for head, tail in self.get_head_tail_pairs(q['sentence']):  #iterating through all possible combinations of 2 named entities
                 q['head'] = head
                 q['tail'] = tail
