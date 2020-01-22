@@ -122,12 +122,12 @@ class Detector:
 
         return combinations(entity_info, 2)
     
-    def run_detection_algorithm(self, query, example_relation_data):
+    def run_detection_algorithm(self, query, relation_data):
         """
             Runs the algorithm/model on the given query using the given support data.
         """
-        N = len(example_relation_data)
-        K = len(example_relation_data[0])
+        N = len(relation_data)
+        K = len(relation_data[0]['examples'])
         Q = 1
         head = query['head']
         tail = query['tail']
@@ -136,8 +136,6 @@ class Detector:
         
         tokenized_head = self.spacy_tokenize_no_coref(head)
         tokenized_tail = self.spacy_tokenize_no_coref(tail)
-#         head_indices = list(range(tokens.index(tokenized_head[0]), tokens.index(tokenized_head[0])+len(tokenized_head)))   
-#         tail_indices = list(range(tokens.index(tokenized_tail[0]), tokens.index(tokenized_tail[0])+len(tokenized_tail)))
         
         head_indices = None
         tail_indices = None
@@ -153,13 +151,11 @@ class Detector:
             raise ValueError
         
         bert_query_tokens = self.bert_tokenize(tokens, head_indices, tail_indices)
-        for relation in example_relation_data:
+        for relation in relation_data:
             for ex in relation['examples']:
                 tokens = self.spacy_tokenize_no_coref(ex['sentence'])
                 tokenized_head = self.spacy_tokenize_no_coref(ex['head'])  #head and tail spelling and punctuation should match the corefered output exactly
                 tokenized_tail = self.spacy_tokenize_no_coref(ex['tail'])
-#                 head_indices = list(range(tokens.index(tokenized_head[0]), tokens.index(tokenized_head[0])+len(tokenized_head)))
-#                 tail_indices = list(range(tokens.index(tokenized_tail[0]), tokens.index(tokenized_tail[0])+len(tokenized_tail)))
                 
                 
                 head_indices = None
@@ -202,7 +198,7 @@ class Detector:
             fusion_set['mask'] = fusion_set['mask'].cuda()
 
         logits, pred = self.model(fusion_set, N, K, Q)
-        return (query['sentence'], head, tail, example_relation_data[pred.item()]['name'] if pred.item() < len(example_relation_data) else 'NA')  #returns (sentence, head, tail, prediction relation name)
+        return (query['sentence'], head, tail, relation_data[pred.item()]['name'] if pred.item() < len(relation_data) else 'NA', logits)  #returns (sentence, head, tail, prediction relation name)
         
     def print_result(self,sentence, head, tail, prediction):
         """
@@ -219,4 +215,4 @@ class Detector:
             for head, tail in self.get_head_tail_pairs(q['sentence']):  #iterating through all possible combinations of 2 named entities
                 q['head'] = head
                 q['tail'] = tail
-                self.print_result(*self.run_detection_algorithm(q, self.example_relation_data))
+                self.print_result(*(self.run_detection_algorithm(q, self.example_relation_data)[:-1]))

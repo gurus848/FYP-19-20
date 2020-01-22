@@ -96,7 +96,19 @@ class DataLoader:
                 info['examples'].append(example_info)
             support_relation_info.append(info)
         return support_relation_info
+    
+    @staticmethod
+    def load_query_csv(filepath):
+        """
+            Loads the passed filepath into a pandas dataframe, then modifies the data into the json format and returns it.
+            The file is assumed to be a csv with a column with the heading 'sentence'
+        """
+        queries = []
+        df = pd.read_csv(filepath)
+        for _, row in df.iterrows():
+            queries.append({'sentence':row['sentence']})
         
+        return queries
     
         
     
@@ -111,10 +123,11 @@ class DetectionFramework:
         
         self.support = []   #stores the list of relation support examples which have been loaded
         self.detector = Detector()   #the detector/model
+        self.queries = []
     
-    def add_support(self, support):
+    def _add_support(self, support):
         """
-            Adds relation support examples which have been loaded to this detection framework.
+            Adds relation support examples which have been loaded to this detection framework. Augments the existing data if necessary. 
         """
         if len(self.support) == 0:
             self.support = support
@@ -133,11 +146,39 @@ class DetectionFramework:
                 to_add.append(support_i)
         self.support.extend(to_add)
         
-    def load_support(self, path):
-        pass
+    def load_support(self, path, K=3, min_instance=3):
+        """
+        Loads the relation support data which is mentioned.
+        """
+        self._add_support(DataLoader.load_relation_support_csv(path, K=K, min_instance=min_instance))
+        
+    def load_queries(self, path):
+        """
+        Loads the queries which are contained at the passed path. 
+        """
+        self.queries = DataLoader.load_query_csv(path)
     
-    def detect_for_queries(self, queries):
+    def detect(self, N=5):
         """
             Runs the detection algorithm for the particular queries
+            
+            queries - the set of queries to run the algorithm on
+            N - for N-way detection. To be implemented in the future. 
+            
         """
-        pass
+        if len(self.support) == 0:
+            raise ValueError("No relation support has been added!")
+            
+        if len(self.queries) == 0:
+            raise ValueError("No queries have been added!")
+            
+        results = []
+        
+        for q in self.queries:
+            for head, tail in self.detector.get_head_tail_pairs(q['sentence']):    #iterating through all possible head and tail pairs
+                q['head'] = head
+                q['tail'] = tail
+                result = self.detector.run_detection_algorithm(q, self.support)
+                self.detector.print_result(*(result[:-1]))
+                results.append(result)
+        return results
