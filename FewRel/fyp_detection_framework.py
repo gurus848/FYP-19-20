@@ -116,13 +116,13 @@ class DetectionFramework:
     """
         Runs the detection model/algorithm on queries in different ways.
     """
-    def __init__(self):
+    def __init__(self, ckpt_path="checkpoint/pair-bert-train_wiki-val_wiki-5-1.pth.tar"):
         """
         Initializer
         """
         
         self.support = []   #stores the list of relation support examples which have been loaded
-        self.detector = Detector()   #the detector/model
+        self.detector = Detector(chpt_path=ckpt_path)   #the detector/model
         self.queries = []
     
     def _add_support(self, support):
