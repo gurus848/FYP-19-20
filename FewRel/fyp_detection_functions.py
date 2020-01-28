@@ -212,7 +212,8 @@ class Detector:
             Runs the model on the sample data which is hardcoded in this file.
         """
         for q in self.queries:
-            for head, tail in self.get_head_tail_pairs(q['sentence']):  #iterating through all possible combinations of 2 named entities
+            # for some reason the python combinations function returns the head the tail consistently backwards
+            for tail, head in self.get_head_tail_pairs(q['sentence']):  #iterating through all possible combinations of 2 named entities
                 q['head'] = head
                 q['tail'] = tail
                 self.print_result(*(self.run_detection_algorithm(q, self.example_relation_data)[:-1]))

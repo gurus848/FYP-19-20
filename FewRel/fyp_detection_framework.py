@@ -7,6 +7,7 @@ class DataLoader:
     """
         Used to load data, such as the relation support dataset. Loads the data in the current format
     """
+
     @staticmethod
     def check_loaded_relation_support_dataframe(df):
         """
@@ -175,7 +176,16 @@ class DetectionFramework:
         results = []
         
         for q in self.queries:
-            for head, tail in self.detector.get_head_tail_pairs(q['sentence']):    #iterating through all possible head and tail pairs
+            # for some reason the python combinations function returns the head the tail consistently backwards
+            for tail, head in self.detector.get_head_tail_pairs(q['sentence']):    #iterating through all possible head and tail pairs
+                q['head'] = head
+                q['tail'] = tail
+                result = self.detector.run_detection_algorithm(q, self.support)
+                self.detector.print_result(*(result[:-1]))
+                results.append(result)
+                
+                tail, head = head, tail
+                
                 q['head'] = head
                 q['tail'] = tail
                 result = self.detector.run_detection_algorithm(q, self.support)
