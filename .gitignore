@@ -16,3 +16,4 @@ __pycache__
 __pycache__/
 __pycache__/*
 ec2init.sh
+models/bert_large/*
