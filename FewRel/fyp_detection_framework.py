@@ -111,6 +111,19 @@ class DataLoader:
         
         return queries
     
+    @staticmethod
+    def load_query_with_head_tail_csv(filepath):
+        """
+            Loads the passed filepath into a pandas dataframe, then modifies the data into the json format and returns it.
+            The file is assumed to be a csv with a column with the headings 'sentence', 'head' and 'tail'.
+        """
+        queries = []
+        df = pd.read_csv(filepath)
+        for _, row in df.iterrows():
+            queries.append({'sentence':row['sentence'], 'head':row['head'], 'tail':row['tail']})
+        
+        return queries
+    
         
     
 class DetectionFramework:
@@ -158,13 +171,19 @@ class DetectionFramework:
         Loads the queries which are contained at the passed path. 
         """
         self.queries = DataLoader.load_query_csv(path)
+        
+    def load_queries_predefined_head_tail(self, path):
+        """
+        Loads the queries which are contained at the passed path, these queries are supposed to have the head and tail to use defined. 
+        """
+        self.queries = DataLoader.load_query_with_head_tail_csv(path)
     
     def detect(self, N=5):
         """
             Runs the detection algorithm for the particular queries
             
             queries - the set of queries to run the algorithm on
-            N - for N-way detection. To be implemented in the future. 
+            N - for N-way detection. TODO: To be implemented in the future. 
             
         """
         if len(self.support) == 0:
@@ -177,18 +196,28 @@ class DetectionFramework:
         
         for q in self.queries:
             # for some reason the python combinations function returns the head the tail consistently backwards
-            for tail, head in self.detector.get_head_tail_pairs(q['sentence']):    #iterating through all possible head and tail pairs
-                q['head'] = head
-                q['tail'] = tail
+            if 'head' not in q:
+                #head and tail are not predefined, so NER is used to find the potential heads and tails
+                for tail, head in self.detector.get_head_tail_pairs(q['sentence']):    #iterating through all possible head and tail pairs
+                    q['head'] = head
+                    q['tail'] = tail
+                    result = self.detector.run_detection_algorithm(q, self.support)
+                    self.detector.print_result(*(result[:-1]))
+                    results.append(result)
+
+                    tail, head = head, tail   #for testing
+
+                    q['head'] = head
+                    q['tail'] = tail
+                    result = self.detector.run_detection_algorithm(q, self.support)
+                    self.detector.print_result(*(result[:-1]))
+                    results.append(result)
+            else:
+                #the head and tail are predefined in the query, so just those are used.
+                
                 result = self.detector.run_detection_algorithm(q, self.support)
                 self.detector.print_result(*(result[:-1]))
                 results.append(result)
-                
-                tail, head = head, tail
-                
-                q['head'] = head
-                q['tail'] = tail
-                result = self.detector.run_detection_algorithm(q, self.support)
-                self.detector.print_result(*(result[:-1]))
-                results.append(result)
+
+
         return results
