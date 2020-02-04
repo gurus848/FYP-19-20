@@ -119,6 +119,11 @@ class DataLoader:
         """
         queries = []
         df = pd.read_csv(filepath)
+        try:
+            DataLoader.check_loaded_relation_support_dataframe(df)
+        except ValuError:
+            raise ValueError("In the mentioned dataset {} at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly.".format(filepath))
+        
         for _, row in df.iterrows():
             queries.append({'sentence':row['sentence'], 'head':row['head'], 'tail':row['tail']})
         
