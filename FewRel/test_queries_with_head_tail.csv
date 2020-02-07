@@ -1,0 +1,11 @@
+﻿sentence,head,tail
+Trump hacked Obama in 2017.,Obama,Trump
+"Trump had had contact, including a meeting in 2010, with Obama before he became President. ",Trump,Obama
+Trump had gotten funding from Congress to investigate Obama.,Trump,Obama
+Trump had gotten funding from Congress to investigate Obama.,Trump,Congress
+Trump opposed President Obama's invasion of Iraq.,Trump,invasion of Iraq
+Trump had gotten funding from Congress to investigate Obama.,Congress,Trump
+Trump opposed President Obama's invasion of Iraq.,invasion of Iraq,Trump
+"There was a meeting between the dean of HKUST and Carrie Lam, but it was inconclusive.",dean of HKUST,Carrie Lam
+"The professor had applied for funding from the college, but it was too little too late.",The professor,the college
+The US CDC offered to assist the Chinese government in solving the virus problem.,US CDC,Chinese government
