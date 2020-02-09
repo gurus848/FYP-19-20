@@ -165,23 +165,42 @@ class DetectionFramework:
                 to_add.append(support_i)
         self.support.extend(to_add)
         
+    def clear_support_queries(self):
+        """
+            Clears any support or queries that have already been loaded.
+        """
+        self.support = []
+        self.queries = []
+    
     def load_support(self, path, K=3, min_instance=3):
         """
         Loads the relation support data which is mentioned.
         """
         self._add_support(DataLoader.load_relation_support_csv(path, K=K, min_instance=min_instance))
         
-    def load_queries(self, path):
+    def load_queries_csv(self, path):
         """
         Loads the queries which are contained at the passed path. 
         """
         self.queries = DataLoader.load_query_csv(path)
         
-    def load_queries_predefined_head_tail(self, path):
+    def load_queries_predefined_head_tail_csv(self, path):
         """
         Loads the queries which are contained at the passed path, these queries are supposed to have the head and tail to use defined. 
         """
         self.queries = DataLoader.load_query_with_head_tail_csv(path)
+        
+    def process_newspaper_article(self, index):
+        """
+        Processes the newspaper article saved in the extracted_article_data.csv file in the data folder, at the given index in the csv file.
+        Assumes that the support has already been loaded.
+        """
+        df = pd.read_csv("../data/extracted_article_data.csv")
+        article_info = df.loc[index]
+        for sentence in article_info['text'].split(". "):
+            self.queries.append({'sentence':sentence})
+        
+        self.detect()
     
     def detect(self, N=5):
         """

@@ -1,6 +1,6 @@
 sentence,head,tail,reldescription
 " In June, the Democratic National Committee and its cyber response team publicly announced that Russian hackers had compromised its computer network.",Russian hackers,Democratic National Committee,hacking
-The Russian government hacked the Clinton Campaign's emails in 2020.,Russian government,Clinton Campaign,hacking
+The Russian government hacked into the Clinton Campaign's emails in 2020.,Russian government,Clinton Campaign,hacking
 "China was hacked by Australia early this year, resulting in the loss of millions of CCP supportors.",Australia,China,hacking
 A laptop was forcibly hacked into by hackers during the conference in 2016.,hackers,A laptop,hacking
 "In March 2016, the  GRU began hacking the email accounts of Clinton Campaign volunteers and employees, including Campaign chairman John Podesta. ",GRU,Clinton Campaign volunteers and employees,hacking
@@ -9,11 +9,6 @@ Papadopoulos had suggested to a representative of that foreign government that t
 China offered to help Japan when Korea was lost.,China,Japan,assistance
 The Japanese government helped Taiwan a lot during WWIII.,Japanese government,Taiwan,assistance
 "And within a week of the release, a foreign government informed the FBI about its May 2016 interaction with Papadopoulos and his statement that the Russian government could assist the Trump Campaign. ",Russian government,Trump Campaign,assistance
-"Governments are funded by its citizens, through tax revenues.",Governments,citizens,funding
-"The IRA was based in St. Petersburg, Russia, and received funding from Russian oligarch Yevgeniy Prigozhin and companies he controlled. ",Yevgeniy Prigozhin,IRA,funding
-"The first form of Russian election influence came principally from the Internet Research Agency, LLC (IRA), a Russian organization funded by Prigozhin and companies he controlled, including Concord Management and Consulting LLC and Concord Catering (collectively ""Concord""). ",Prigozhin,IRA,funding
-HKUST asked for funding from the government but it came 5 years late.,the government,HKUST,funding
-"The IRA had gotten funding from Prigozhin, but it never used it, because it thought that it was better than that.",Prigozhin,IRA,funding
 Trump threw a fit when he found out that he could meet God.,Trump,God,meeting
 "The Russian contacts consisted of business connections, offers of assistance to  the Campaign, invitations for candidate Trump and Putin to meet in person, invitations for Campaign officials and representatives of the Russian government to meet, and policy positions seeking improved U.S.-Russian relations.  ",Trump,Putin,meeting
 "Throughout that period of time and for several months thereafter, Papadopoulos worked with Mifsud and two Russian nationals to arrange a meeting between the Campaign and the Russian government. ",Campaign,Russian government,meeting
@@ -24,3 +19,9 @@ The IRA provided support to the Trump Campaign and opposition to candidate Clint
 "The PAC provided a lot of opposition to the Campaign, but ultimately it was never successful.",The PAC,the Campaign,oppose
 "Throughout 2016, IRA accounts published an increasing number of materials supporting the Trump Campaign and opposing the Clinton Campaign, as the IRA had been opposed to Clinton. ",IRA accounts,Clinton Campaign,oppose
 The IRA had been opposed to the Clinton Campaign.  ,IRA,Clinton Campaign,oppose
+"In November 2017, a Facebook representative testified that Facebook had identified 470 IRA-controlled Facebook accounts that collectively made 80,000 posts between January 2015 and August 2017. ",Facebook,IRA,identification
+Facebook estimated the IRA reached as many as 126 million persons through its Face book accounts. ,Facebook,IRA,identification
+"In January 2018, Twitter announced that it had identified 3,814 IRA-controlled Twitter accounts and notified approximately 1 .4 million people Twitter believed may have been in contact with an iRA-controlled account.",Twitter,IRA,identification
+"In January 2018, Twitter publicly identified 3,814 Twitter accounts associated with the IRA.",Twitter,IRA,identification
+Twitter also announced that it had notified approximately 1.4 million people who Twitter believed may have been in contact with an IRA-controlled account.,Twitter,IRA,identification
+The Office identified dozens of U.S. rallies organized by the IRA.,The Office,IRA,identification
