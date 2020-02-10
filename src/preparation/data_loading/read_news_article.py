@@ -4,6 +4,7 @@ import pandas as pd
 import sys
 import os
 from enum import Enum
+import urllib.request, urllib.error, urllib.parse
 
 
 project_data_folder_path = "../../../data"
@@ -75,6 +76,21 @@ def process_html_file(file):
         return read_wsj_article(read_html_file(file))
     elif publisher == ArticleType.OTHER:
         return read_other_article(read_html_file(file))
+
+
+def process_url(url):
+    """
+    Processes the news article webpage pointed to by the url. Downloads the html file and calls the code for processing a local file.
+    :param url: url to the article
+    :return:
+    """
+    response = urllib.request.urlopen(url)
+    webContent = response.read()
+
+    f = open('temp.html', 'wb')
+    f.write(webContent)
+    f.close()
+    return process_html_file('temp.html')
 
 
 def determine_publisher(file):
@@ -235,12 +251,27 @@ def process_file_articles(file_list):
 
 
 def process_online_articles(url_list):
-    # TODO
-    pass
+    """
+            Given a list of urls, process all of them and extracts their data and adds it to the csv file.
+        :param url_list: list of urls which need text and other info extracted from them
+        :return:
+    """
+    csv_file = os.path.join(project_data_folder_path, "extracted_article_data.csv")
+    open(csv_file, 'a').close()  # to create the file if it doesn't exist
+    if os.path.getsize(csv_file) > 0:
+        data = pd.read_csv(csv_file)
+    else:
+        data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
+    for url in url_list:
+        res_dict = process_url(url)
+        if (data['title'] == res_dict['title']).sum() == 0:
+            data = data.append(res_dict, ignore_index=True)
+    data.to_csv(csv_file, index=False)
 
 
 def main():
-    process_file_articles(['fox_news_article_example.html', 'test_nyt.html'])
+    # process_file_articles(['fox_news_article_example.html', 'test_nyt.html'])
+    process_online_articles(['https://www.nytimes.com/2020/02/10/business/coronavirus-japan-cruise-ship.html?action=click&module=Top%20Stories&pgtype=Homepage'])
 
 
 if __name__ == '__main__':

@@ -121,7 +121,7 @@ class DataLoader:
         df = pd.read_csv(filepath)
         try:
             DataLoader.check_loaded_relation_support_dataframe(df)
-        except ValuError:
+        except ValueError:
             raise ValueError("In the mentioned dataset {} at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly.".format(filepath))
         
         for _, row in df.iterrows():
@@ -207,7 +207,7 @@ class DetectionFramework:
             Runs the detection algorithm for the particular queries
             
             queries - the set of queries to run the algorithm on
-            N - for N-way detection. TODO: To be implemented in the future. 
+            N - for N-way detection. TODO: To be implemented in the future. Currently ALL of the relations which are in the support dataset are used in the N-way prediction, even if there are less than or greater than 5.
             
         """
         if len(self.support) == 0:
