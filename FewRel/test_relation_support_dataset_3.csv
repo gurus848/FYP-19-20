@@ -1,0 +1,26 @@
+sentence,head,tail,reldescription
+Papadopoulos had suggested to a representative of that foreign government that the Trump Campaign had received indications from the Russian government that it could assist the  Campaign through the  anonymous release of information damaging to Democratic presidential candidate Clinton. ,Russian government,Trump Campaign,work_together
+"The written communications setting up the meeting showed that the Campaign anticipated receiving information from Russia that could assist candidate Trump's electoral prospects, but the Russian lawyer's presentation did not provide such information. ",Russia,the Campaign,work_together
+"Republicans Reps. Brian Fitzpatrick (Pa.), Chris Smith (N.J.), John Katko(N.Y.), Don Young (Alaska), and Jefferson Van Drew (N.J.), a former Democrat who switched parties last month, voted for the bill.",Brian Fitzpatrick,Chris Smith,work_together
+"Sen. Ed Markey (D-Mass.) added that Trump is trying to cut Ãƒâ€™the benefits working class families have earned, all to pay for his tax cuts for his billionaire backers.Ãƒâ€œ",Trump,billionaire backers,work_together
+"And within a week of the release, a foreign government informed the FBI about its May 2016 interaction with Papadopoulos and his statement that the Russian government could assist the Trump Campaign. ",Russian government,Trump Campaign,work_together
+Trump threw a fit when he found out that he could meet God.,Trump,God,contact
+"The Russian contacts consisted of business connections, offers of assistance to  the Campaign, invitations for candidate Trump and Putin to meet in person, invitations for Campaign officials and representatives of the Russian government to meet, and policy positions seeking improved U.S.-Russian relations.  ",Trump,Putin,contact
+"Throughout that period of time and for several months thereafter, Papadopoulos worked with Mifsud and two Russian nationals to arrange a meeting between the Campaign and the Russian government. ",Campaign,Russian government,contact
+"A meeting was arranged between France and the UK, but it ended up never happening.",France,the UK,contact
+"On June 9, 2016, for example, a Russian lawyer met with senior Trump Campaign officials Trump Jr., Kushner, and Campaign chairman Manafort to deliver what the email proposing the  meeting had described as ""official documents and information  that  would incriminate Hillary.""  ",a Russian lawyer,Trump Campaign officials,contact
+"Trump was opposed to the meeting, because he was not invited.",Trump,the meeting,oppose
+The IRA provided support to the Trump Campaign and opposition to candidate Clinton.,IRA,Clinton,oppose
+"China was hacked by Australia early this year, resulting in the loss of millions of CCP supportors.",Australia,China,oppose
+A laptop was forcibly hacked into by hackers during the conference in 2016.,hackers,A laptop,oppose
+"In March 2016, the  GRU began hacking the email accounts of Clinton Campaign volunteers and employees, including Campaign chairman John Podesta. ",GRU,Clinton Campaign volunteers and employees,oppose
+"In the 1960s, Arkady Rotenberg joined the same judo club as a young Putin, and they have remained close ever since since they liked each other.",Arkady Rotenberg,Putin,like
+"Trump had recently praised Putin on TV, so Sater emailed Cohen saying, ""Get me the clip.""",Trump,Putin,like
+"Putin said that he liked Trump, and he had described him as ""talented"" and ""a very colorful man.""",Putin,Trump,like
+Trump liked the GOP lawmaker.,Trump,GOP lawmaker,like
+"Freidman, in an interview over steaks at an Upper East Side tavern, declined to say what he told prosecutors about Cohen, whom he described as â""one of the sweetest people you'd ever meet.""",Freidman,Cohen,like
+Donald Trump is a long-term member of the Republican party.,Donald Trump,Republican party,part_of
+Taylor Swift played a song at Trump's inauguration ceremony.,Taylor Swift,inauguration ceremony.,part_of
+"The team will be led by Bruce Aylward, a Canadian physician and epidemiologist who has previously overseen international campaigns to fight Ebola and polio, the organizationÃƒÆ’Ã¢â‚¬Â¢s director general, Tedros Adhanom Ghebreyesus, announced on Sunday in Geneva.",Bruce Aylward,The team,part_of
+"Zeng Qun, the deputy head of ShanghaiÃƒÆ’Ã¢â‚¬Â¢s Civil Affairs Bureau, said at a news conference on Saturday that aerosol transmission is among the ways the novel coronavirus can be spread.",Zeng Qun,ShanghaiÃƒÆ’Ã¢â‚¬Â¢s Civil Affairs Bureau,part_of
+"Shen Yinzhong, the medical director of the Shanghai Public Health Clinical Center, told The Paper, a Shanghai newspaper, the coronavirus can spread through the air in theory, a confirmation requires further research.",Shen Yinzhong,Shanghai Public Health Clinical Center,part_of

@@ -132,7 +132,7 @@ class Detector:
         head = query['head']
         tail = query['tail']
         fusion_set = {'word': [], 'mask': [], 'seg': []}
-        tokens = self.spacy_tokenize_coref(query['sentence'])
+        tokens = self.spacy_tokenize_no_coref(query['sentence'])
         
         tokenized_head = self.spacy_tokenize_no_coref(head)
         tokenized_tail = self.spacy_tokenize_no_coref(tail)

@@ -15,38 +15,7 @@ class ArticleType(Enum):
     FOX = 2
     OTHER = 3
     WSJ = 4
-
-
-def read_online_news_article(url):
-    """
-    Reads a news article from online given a URL
-    :return:
-    """
-
-    # TODO: make it work better?
-
-    article = Article(url)
-    article.download()
-    article.parse()
-    authors = article.authors
-    title = article.title
-    date = article.publish_date
-    if date is not None:
-        date = article.publish_date.strftime('%d/%m/%Y')
-    source_url = url
-    # weird work-around
-    article_ascii = article.text.encode('ascii', 'ignore')
-    text = article_ascii.decode('utf-8').replace('\n\n', ' ')
-
-    result_dict = {
-        'title': title,
-        'authors': authors,
-        'text': text,
-        'date': date,
-        'publisher': None
-    }
-
-    return result_dict
+    CNN = 5
 
 
 def read_html_file(file):
@@ -67,15 +36,34 @@ def process_html_file(file):
     :param file:   filepath to the file to be processed
     :return:
     """
-    publisher = determine_publisher(file)
+    publisher = determine_publisher(read_html_file(file))
     if publisher == ArticleType.NYT:
         return read_nyt_article(read_html_file(file))
     elif publisher == ArticleType.FOX:
         return read_fox_article(read_html_file(file))
-    elif publisher == ArticleType.WSJ:
-        return read_wsj_article(read_html_file(file))
     elif publisher == ArticleType.OTHER:
         return read_other_article(read_html_file(file))
+    elif publisher == ArticleType.CNN:
+        return read_other_article(read_html_file(file))
+
+
+def process_text_file(file):
+    """
+        Process an inputted raw text file and adds it to the overall csv file.
+    :param file: path to the text file
+    :return: object (dictionary) representing the parsed file
+    """
+
+    text = open(file).read()
+
+    result_dict = {
+        'title': file,
+        'authors': 'N/A',
+        'text': text,
+        'date': 'N/A',
+        'publisher': 'raw_text_file'
+    }
+    return result_dict
 
 
 def process_url(url):
@@ -93,19 +81,23 @@ def process_url(url):
     return process_html_file('temp.html')
 
 
-def determine_publisher(file):
+def determine_publisher(htmltext):
     """
         Determines the published of the particular article pointed to by the file path, so that the appropriate
         functions can be called in other parts of the code.
     :param file:
     :return:
     """
-    soup = BeautifulSoup(read_html_file(file), 'lxml')
+    soup = BeautifulSoup(htmltext, 'lxml')
     title = soup.html.head.title.text  # extracts the title
     if "The New York Times" in title:
         return ArticleType.NYT
     elif "Fox News" in title:
         return ArticleType.FOX
+    elif "cnn" in title.lower():
+        return ArticleType.CNN
+    elif "WSJ" in title:
+        return ArticleType.WSJ
     else:
         return ArticleType.OTHER
 
@@ -162,24 +154,6 @@ def read_nyt_article(htmltext):
     return result_dict
 
 
-def read_wsj_article(htmltext):
-    """
-
-    uses the string of the wall street jounral article which is passed to it to extract the important information
-
-    :param htmltext: a string which contains the html of the wall street journal article
-
-    :return:  returns a dict which stores the extracted result
-    """
-
-    """
-        Wall street journal articles require a subscription to read, so parsing them cannot be done at the moment. We can revisit this if we get access
-        to a wall street journal subscription. 
-    """
-
-    pass
-
-
 def read_fox_article(htmltext):
     """
 
@@ -223,12 +197,35 @@ def read_fox_article(htmltext):
 
 def read_other_article(htmltext):
     """
-        Processes the articles other than the ones for which specific rules have been written
-    :param htmltext:
+        Processes articles other than the ones for which specific rules have been written
+    :param htmltext: the htmltext of the article
     :return:
     """
-    # TODO
-    pass
+    article = Article('')  # so that you can use local files with newspaper3k
+    article.set_html(htmltext)
+    article.parse()
+    authors = article.authors  # sometimes is extracts stuff like "Reporter for Fox News. Follow Her on Twitter.."
+
+    date = article.publish_date  # TODO: date not extracted here properly
+    if date is not None:
+        date = article.publish_date.strftime('%d/%m/%Y')
+
+    text = article.text
+    text = "".join(i for i in text if i != '\n')
+    title = article.title
+
+    publisher = 'other'
+    if determine_publisher(htmltext) == ArticleType.CNN:
+        publisher = 'cnn'
+
+    result_dict = {
+        'title': title,
+        'authors': authors,
+        'text': text,
+        'date': date,
+        'publisher': publisher
+    }
+    return result_dict
 
 
 def process_file_articles(file_list):
@@ -269,9 +266,30 @@ def process_online_articles(url_list):
     data.to_csv(csv_file, index=False)
 
 
+def process_text_files(file_list):
+    """
+
+        Given a list of filepaths, processes all of them and adds them to the extracted data csv file
+    :param file_list: The list of filepaths to process
+    :return:
+    """
+    csv_file = os.path.join(project_data_folder_path, "extracted_article_data.csv")
+    open(csv_file, 'a').close()  # to create the file if it doesn't exist
+    if os.path.getsize(csv_file) > 0:
+        data = pd.read_csv(csv_file)
+    else:
+        data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
+    for file in file_list:
+        res_dict = process_text_file(file)
+        if (data['title'] == res_dict['title']).sum() == 0:
+            data = data.append(res_dict, ignore_index=True)
+    data.to_csv(csv_file, index=False)
+
+
 def main():
     # process_file_articles(['fox_news_article_example.html', 'test_nyt.html'])
-    process_online_articles(['https://www.nytimes.com/2020/02/10/business/coronavirus-japan-cruise-ship.html?action=click&module=Top%20Stories&pgtype=Homepage'])
+    process_online_articles(['https://us.cnn.com/2020/02/14/us/donald-lee-moore-shawn-marie-neal-dna-serial-podcast-trnd/index.html'])
+    # process_text_files(['read_dossier.py'])
 
 
 if __name__ == '__main__':
