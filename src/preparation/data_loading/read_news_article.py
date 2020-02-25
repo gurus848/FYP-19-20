@@ -1,7 +1,6 @@
 from newspaper import Article
 from bs4 import BeautifulSoup
 import pandas as pd
-import sys
 import os
 from enum import Enum
 import urllib.request, urllib.error, urllib.parse
