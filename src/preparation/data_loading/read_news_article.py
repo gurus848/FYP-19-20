@@ -286,8 +286,10 @@ def process_text_files(file_list):
 
 
 def main():
-    # process_file_articles(['fox_news_article_example.html', 'test_nyt.html'])
+    process_file_articles(['fox_news_article_example.html', 'test_nyt.html'])
     process_online_articles(['https://us.cnn.com/2020/02/14/us/donald-lee-moore-shawn-marie-neal-dna-serial-podcast-trnd/index.html'])
+
+
     # process_text_files(['read_dossier.py'])
 
 
