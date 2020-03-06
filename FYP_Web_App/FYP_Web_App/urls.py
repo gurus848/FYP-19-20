@@ -21,4 +21,7 @@ from fyp_website import views
 urlpatterns = [
     url(r'^$', views.home, name='home'),
     url(r'^admin/', admin.site.urls),
+    url(r'^rel_ex_files/', views.rel_ex_files, name='rel_ex_files'),
+    url(r'^get_analysis_results/', views.get_analysis_results, name='get_analysis_results'),
+    url(r'^start_analysis/', views.start_analysis, name='start_analysis')
 ]

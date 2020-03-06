@@ -1,13 +1,21 @@
-{% load static %}<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>FYP Relation Extraction</title>
-    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
-  </head>
-  <body>
-    <!-- body suppressed for brevity ... -->
-  <h1 style="text-align: center">Web App FYP Relation Extraction</h1>
+{% extends 'base.html' %}
+{% load static %}
 
-  </body>
-</html>
+{% block title %}Web App FYP Relation Extraction{% endblock %}
+
+{% block content %}
+    <h1 style="text-align: center">Web App FYP Relation Extraction</h1>
+
+    <form method="post" id="rel_ex_files_form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-success">Upload Datasets</button>
+    </form>
+
+<button id="do_analysis_button" class="btn btn-primary">Do Analysis</button>
+{% endblock %}
+
+
+{% block javascript %}
+<script src="{% static 'scripts/home_main.js' %}"></script>
+{% endblock %}
