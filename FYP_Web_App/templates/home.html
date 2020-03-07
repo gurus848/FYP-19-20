@@ -13,6 +13,33 @@
     </form>
 
 <button id="do_analysis_button" class="btn btn-primary">Do Analysis</button>
+
+
+<table class="table">
+        <thead class="thead-inverse">
+          <tr>
+            <th>Sentence</th>
+            <th>Head</th>
+            <th>Tail</th>
+            <th>Predicted Relation</th>
+          </tr>
+        </thead>
+        <tbody id="result_table">
+            {% for i in data %}
+            <tr>
+                <td>{{ i.sentence }}</td>
+                <td>{{ i.head }}</td>
+                <td>{{ i.tail }}</td>
+                <td>{{ i.pred_relation }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+      </table>
+
+<p id="analysis_status_indicator">Analysis Status: Not Running</p>
+<button id="cancel_analysis_button" class="btn btn-danger">Cancel Analysis</button>
+<h3> Errors </h3>
+<div id="errors_div"></div>
 {% endblock %}
 
 

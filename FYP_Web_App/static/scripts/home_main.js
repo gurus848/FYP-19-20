@@ -14,6 +14,8 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+// to make form submits work 
 var csrftoken = getCookie('csrftoken');
 function csrfSafeMethod(method) {
     // these HTTP methods do not require CSRF protection
@@ -64,14 +66,34 @@ $('#rel_ex_files_form').on('submit', function(event){
 });
 
 //Does GET results periodically to load the results of the analysis.
+var do_check_request = false;
+var cur_index_reached = 0;   //flag indicating whether the requests to get new results should still be done or not
 function check_analysis_results() {
     $.ajax({
         url: "get_analysis_results/",
         type: "GET",
+        data: {'cur_index_reached':cur_index_reached},
         // handle a successful response
         success : function(json) {
             console.log(json); // log the returned json to the console
-            //TODO
+            if(json.status == 'finished_analysis'){
+                //stop the requests in the future
+                do_check_request = false;
+                $('#analysis_status_indicator').text('Analysis Status: Finished Analyzing');
+            }
+            if(json.status == 'analysis_not_running'){
+                do_check_request = false;
+                $('#analysis_status_indicator').text('Analysis Status: Not Running');
+                return;
+            }
+            
+            //process new data retrieved
+            var new_data = json.new_data;
+            for(var i = 0; i < new_data.length; i++){
+                console.log(new_data[i]);
+                $('#result_table').append('<tr><td>'+new_data[i].sentence+'</td> <td class="align-middle">'+new_data[i].head+'</td><td class="align-middle">'+new_data[i].tail+'</td><td>'+new_data[i].pred_relation+'</td></tr>');
+            }
+            cur_index_reached += new_data.length;
         },
 
         // handle a non-successful response
@@ -80,8 +102,10 @@ function check_analysis_results() {
         },
         
         complete: function() {
-            // Schedule the next request when the current one's complete
-            setTimeout(check_analysis_results, 1000);
+            // Schedule the next request when the current one's complete, even if it fails
+            if(do_check_request){
+                setTimeout(check_analysis_results, 2000);
+            }
         }
     });
 }
@@ -94,8 +118,17 @@ $('#do_analysis_button').click(function() {
         // handle a successful response
         success : function(json) {
             console.log(json); // log the returned json to the console
-            alert('Started analysis successfully!');
-            setTimeout(check_analysis_results, 3000);
+            if (json.hasOwnProperty('success')){
+                cur_index_reached = 0;
+                setTimeout(check_analysis_results, 3000);
+                do_check_request = true;
+                $('#result_table').html('');
+                $('#analysis_status_indicator').text('Analysis Status: Running Right Now');
+                alert('Started analysis successfully!');
+            }else{
+                alert('Error!');
+            }
+            
         },
 
         // handle a non-successful response
@@ -103,4 +136,8 @@ $('#do_analysis_button').click(function() {
             console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
         }
     });
+});
+
+$('#cancel_analysis_button').click(function() {
+   //TODO 
 });

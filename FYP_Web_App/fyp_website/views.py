@@ -15,7 +15,10 @@ def home(request):
         Renders the home page of the app.
     """
     form = RelExInfoForm()
-    return render(request, 'home.html', {'form': form})
+    data = []
+    for i in results:
+        data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3]})
+    return render(request, 'home.html', {'form': form, 'data': data})
 
 
 def handle_uploaded_file(f, fname):
@@ -56,16 +59,20 @@ def do_analysis():
     """
         Runs the actual analysis in a different thread
     """
-    global currently_analyzing
+    global currently_analyzing, results
     try:
         print("starting analysis!")
         currently_analyzing = True
+        results = []
         d = DetectionFramework(ckpt_path=ckpt)
         d.clear_support_queries()
         d.load_support("temp/relation_support_dataset.csv", K=5)
-        d.load_queries_predefined_head_tail_csv("temp/queries.csv")
-        d.detect()
+        d.load_queries_predefined_head_tail_csv("temp/queries.csv")    #TODO: generalize it to allow for non-predefined head and tail also
+        d.detect(rt_results=results)
         currently_analyzing = False
+    except ValueError as e:
+        # TODO: handle the cases where there's an issue with the input data
+        pass
     finally:
         currently_analyzing = False
     
@@ -74,7 +81,6 @@ def start_analysis(request):
     """
         Starts the analysis process
     """
-    global currently_analyzing
     if request.method == "GET":
 
         if not currently_analyzing:
@@ -96,9 +102,31 @@ def start_analysis(request):
         )
         
         
-    
+
 def get_analysis_results(request):
     """
         Returns the periodic analysis results as a specific json list
     """
-    global currently_analyzing
+    if not currently_analyzing and len(results) == 0:
+        return HttpResponse(
+            json.dumps({'status':'analysis_not_running'}),
+            content_type="application/json"
+        )
+    else:
+        client_index_till = int(request.GET.get('cur_index_reached', 0))
+        new_data = []
+        for i in results[client_index_till:]:
+            new_data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3]})
+        status = 'analysis_in_progress'
+        if not currently_analyzing:
+            status = 'finished_analysis'
+        return HttpResponse(
+            json.dumps({'status':status, 'new_data':new_data}),
+            content_type="application/json"
+        )
+    
+def cancel_analysis(request):
+    """
+        Cancels the analysis if it is currently running.
+    """
+    pass
