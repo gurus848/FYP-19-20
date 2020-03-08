@@ -4,42 +4,72 @@
 {% block title %}Web App FYP Relation Extraction{% endblock %}
 
 {% block content %}
-    <h1 style="text-align: center">Web App FYP Relation Extraction</h1>
+<div class="card">
+    <div class="card-header">
+        Upload Datasets
+    </div>
+    <div class="card-body">
+        <form method="post" id="rel_ex_files_form">
+            {% csrf_token %}
+            {% include 'form_template.html' %}
+            <button type="submit" class="btn btn-success">Upload Datasets</button>
+        </form>
+    </div>
+</div>
 
-    <form method="post" id="rel_ex_files_form">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" class="btn btn-success">Upload Datasets</button>
-    </form>
-
-<button id="do_analysis_button" class="btn btn-primary">Do Analysis</button>
-
-
-<table class="table">
-        <thead class="thead-inverse">
-          <tr>
-            <th>Sentence</th>
-            <th>Head</th>
-            <th>Tail</th>
-            <th>Predicted Relation</th>
-          </tr>
-        </thead>
-        <tbody id="result_table">
-            {% for i in data %}
-            <tr>
-                <td>{{ i.sentence }}</td>
-                <td>{{ i.head }}</td>
-                <td>{{ i.tail }}</td>
-                <td>{{ i.pred_relation }}</td>
-            </tr>
+<div class="card">
+    <div class="card-header">
+        Run Analysis
+    </div>
+    <div class="card-body">
+        <p id="analysis_status_indicator">Analysis Status: Not Running</p>
+        <label for="ckpt_selector">Choose model checkpoint: </label>
+        <select id="ckpt_selector">
+            {% for i in ckpts %}
+                <option value="{{ i }}"> {{ i }} </option>
             {% endfor %}
-        </tbody>
-      </table>
+        </select>
+        <br/>
+        <button id="do_analysis_button" class="btn btn-primary">Do Analysis</button>
+        <button id="cancel_analysis_button" class="btn btn-danger">Cancel Analysis</button>
+    </div>
+</div>
 
-<p id="analysis_status_indicator">Analysis Status: Not Running</p>
-<button id="cancel_analysis_button" class="btn btn-danger">Cancel Analysis</button>
-<h3> Errors </h3>
-<div id="errors_div"></div>
+<div class="card">
+    <div class="card-header">
+        Analysis Results
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead class="thead-inverse">
+                <tr>
+                <th>Sentence</th>
+                <th>Head</th>
+                <th>Tail</th>
+                <th>Predicted Relation</th>
+                </tr>
+            </thead>
+            <tbody id="result_table">
+                {% for i in data %}
+                    <tr>
+                        <td>{{ i.sentence }}</td>
+                        <td>{{ i.head }}</td>
+                        <td>{{ i.tail }}</td>
+                        <td>{{ i.pred_relation }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        Errors During Analysis
+    </div>
+    <div class="card-body" id="errors_div">
+    </div>
+</div>
 {% endblock %}
 
 

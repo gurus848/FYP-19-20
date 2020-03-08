@@ -7,9 +7,16 @@
     {% block stylesheet %}{% endblock %}
   </head>
   <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="{% url 'home' %}">FYP RelEx</a>
+      </div>
+    </nav>
     <main>
+        <div class="container" id="overall_container">
       {% block content %}
       {% endblock %}
+        </div>
     </main>
     <script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
     {% block javascript %}{% endblock %}

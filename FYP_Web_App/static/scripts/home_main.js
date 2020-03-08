@@ -80,6 +80,7 @@ function check_analysis_results() {
                 //stop the requests in the future
                 do_check_request = false;
                 $('#analysis_status_indicator').text('Analysis Status: Finished Analyzing');
+                alert('Finished analysis!');
             }
             if(json.status == 'analysis_not_running'){
                 do_check_request = false;
@@ -115,6 +116,7 @@ $('#do_analysis_button').click(function() {
     $.ajax({
         url: "start_analysis/",
         type: "GET",
+        data: {'ckpt': $('#ckpt_selector').val()},   //to specify the model checkpoint to be used
         // handle a successful response
         success : function(json) {
             console.log(json); // log the returned json to the console

@@ -190,6 +190,7 @@ class FewShotREFramework:
         iter_right = 0.0
         iter_right_dis = 0.0
         iter_sample = 0.0
+        ckpt_i = 1
         for it in range(start_iter, start_iter + train_iter):
             if pair:
                 batch, label = next(self.train_data_loader)
@@ -277,7 +278,8 @@ class FewShotREFramework:
                 model.train()
                 if acc > best_acc:
                     print('Best checkpoint')
-                    torch.save({'state_dict': model.state_dict()}, save_ckpt)
+                    torch.save({'state_dict': model.state_dict()}, save_ckpt[:-8]+'-'+str(ckpt_i)+'.pth.tar')
+                    ckpt_i += 1
                     best_acc = acc
                 iter_loss = 0.
                 iter_loss_dis = 0.

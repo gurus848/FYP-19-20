@@ -18,7 +18,8 @@ def home(request):
     data = []
     for i in results:
         data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3]})
-    return render(request, 'home.html', {'form': form, 'data': data})
+    ckpts = [f for f in os.listdir(os.environ['FEWREL_PATH'] + "/checkpoint") if '.pth.tar' in f]
+    return render(request, 'home.html', {'form': form, 'data': data, 'ckpts':ckpts})
 
 
 def handle_uploaded_file(f, fname):
@@ -54,8 +55,7 @@ def rel_ex_files(request):
 
 currently_analyzing = False
 results = []
-ckpt = os.environ['FEWREL_PATH'] + "/checkpoint/pair-bert-train_re3d_fewrel_format-train_re3d_fewrel_format-5-3-na3.pth.tar"
-def do_analysis():
+def do_analysis(ckpt):
     """
         Runs the actual analysis in a different thread
     """
@@ -64,6 +64,7 @@ def do_analysis():
         print("starting analysis!")
         currently_analyzing = True
         results = []
+        ckpt = os.environ['FEWREL_PATH'] + "/checkpoint/" + ckpt
         d = DetectionFramework(ckpt_path=ckpt)
         d.clear_support_queries()
         d.load_support("temp/relation_support_dataset.csv", K=5)
@@ -84,7 +85,7 @@ def start_analysis(request):
     if request.method == "GET":
 
         if not currently_analyzing:
-            t = Thread(target=do_analysis)
+            t = Thread(target=do_analysis, args=(request.GET.get('ckpt', 'pair-bert-train_re3d_fewrel_format-train_re3d_fewrel_format-5-3-na3.pth.tar'),))
             t.start()
             return HttpResponse(
                 json.dumps({"success": "analysis started"}),
@@ -129,4 +130,14 @@ def cancel_analysis(request):
     """
         Cancels the analysis if it is currently running.
     """
-    pass
+    #TODO
+    if not currently_analyzing:
+        return HttpResponse(
+            json.dumps({'status':"error"}),
+            content_type="application/json"
+        )
+    else:
+        return HttpResponse(
+            json.dumps({'status':"success"}),
+            content_type="application/json"
+        )

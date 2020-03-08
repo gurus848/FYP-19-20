@@ -113,3 +113,4 @@ zipp==0.6.0
 zope.deprecation==4.4.0
 zope.interface==4.7.1
 zope.sqlalchemy==1.2
+django-widget-tweaks
