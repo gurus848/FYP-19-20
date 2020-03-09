@@ -2,6 +2,8 @@ import spacy
 import pandas as pd
 import random
 from fyp_detection_functions import Detector
+from textblob import TextBlob
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 class DataLoader:
     """
@@ -197,18 +199,20 @@ class DetectionFramework:
         """
         df = pd.read_csv("../data/extracted_article_data.csv")
         article_info = df.loc[index]
-        for sentence in article_info['text'].split(". "):
-            self.queries.append({'sentence':sentence})
+        t = TextBlob(article_info['text'])
+        for sentence in t.sentences:
+            self.queries.append({'sentence':str(sentence)})
         
         self.detect()
     
-    def detect(self, N=5):
+    def detect(self, N=5, rt_results=None, cancel_flag=[False]):
         """
             Runs the detection algorithm for the particular queries
             
             queries - the set of queries to run the algorithm on
             N - for N-way detection. TODO: To be implemented in the future. Currently ALL of the relations which are in the support dataset are used in the N-way prediction, even if there are less than or greater than 5.
-            
+            rt_results - real time results list - if specified, then the analysis results will be added to this list as they are evaluated.
+            cancel_flag - set the index 0 element to True if you want the analysis to be cancelled.
         """
         if len(self.support) == 0:
             raise ValueError("No relation support has been added!")
@@ -217,9 +221,14 @@ class DetectionFramework:
             raise ValueError("No queries have been added!")
             
         results = []
+        sid = SentimentIntensityAnalyzer()
         
         for q in self.queries:
+            if cancel_flag[0]:
+                break
+            
             # for some reason the python combinations function returns the head the tail consistently backwards
+            sentence = q['sentence']
             if 'head' not in q:
                 #head and tail are not predefined, so NER is used to find the potential heads and tails
                 for tail, head in self.detector.get_head_tail_pairs(q['sentence']):    #iterating through all possible head and tail pairs
@@ -227,6 +236,14 @@ class DetectionFramework:
                     q['tail'] = tail
                     result = self.detector.run_detection_algorithm(q, self.support)
                     self.detector.print_result(*(result[:-1]))
+#                     blob = TextBlob(sentence)   #using textblob for sentiment analysis
+                    ss = sid.polarity_scores(sentence)   #using nltk and vader
+                    vader_sentiment = ""
+                    for k in sorted(ss):
+                        vader_sentiment += ('{0}: {1}, '.format(k, ss[k]))
+                        
+#                     result.append(blob.sentiment)
+                    result.append(vader_sentiment)
                     results.append(result)
 
                     tail, head = head, tail   #for testing
@@ -235,13 +252,27 @@ class DetectionFramework:
                     q['tail'] = tail
                     result = self.detector.run_detection_algorithm(q, self.support)
                     self.detector.print_result(*(result[:-1]))
+                        
+#                     result.append(blob.sentiment)
+                    result.append(vader_sentiment)
                     results.append(result)
+                    if rt_results is not None:
+                        rt_results.append(result)
             else:
                 #the head and tail are predefined in the query, so just those are used.
                 
                 result = self.detector.run_detection_algorithm(q, self.support)
                 self.detector.print_result(*(result[:-1]))
+#                 blob = TextBlob(sentence)
+                ss = sid.polarity_scores(sentence)   #using nltk and vader
+                vader_sentiment = ""
+                for k in sorted(ss):
+                    vader_sentiment += ('{0}: {1}, '.format(k, ss[k]))
+                    
+#                 result.append(blob.sentiment)
+                result.append(vader_sentiment)
                 results.append(result)
-
+                if rt_results is not None:
+                    rt_results.append(result)
 
         return results

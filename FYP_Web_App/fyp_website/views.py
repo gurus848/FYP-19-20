@@ -55,6 +55,7 @@ def rel_ex_files(request):
 
 currently_analyzing = False
 results = []
+cancel_flag=[False]
 def do_analysis(ckpt):
     """
         Runs the actual analysis in a different thread
@@ -69,7 +70,7 @@ def do_analysis(ckpt):
         d.clear_support_queries()
         d.load_support("temp/relation_support_dataset.csv", K=5)
         d.load_queries_predefined_head_tail_csv("temp/queries.csv")    #TODO: generalize it to allow for non-predefined head and tail also
-        d.detect(rt_results=results)
+        d.detect(rt_results=results, cancel_flag=cancel_flag)
         currently_analyzing = False
     except ValueError as e:
         # TODO: handle the cases where there's an issue with the input data
@@ -85,6 +86,7 @@ def start_analysis(request):
     if request.method == "GET":
 
         if not currently_analyzing:
+            cancel_flag[0] = False
             t = Thread(target=do_analysis, args=(request.GET.get('ckpt', 'pair-bert-train_re3d_fewrel_format-train_re3d_fewrel_format-5-3-na3.pth.tar'),))
             t.start()
             return HttpResponse(
@@ -130,14 +132,14 @@ def cancel_analysis(request):
     """
         Cancels the analysis if it is currently running.
     """
-    #TODO
+    cancel_flag[0] = True
     if not currently_analyzing:
         return HttpResponse(
-            json.dumps({'status':"error"}),
+            json.dumps({'error':"error"}),
             content_type="application/json"
         )
     else:
         return HttpResponse(
-            json.dumps({'status':"success"}),
+            json.dumps({'success':"success"}),
             content_type="application/json"
         )
