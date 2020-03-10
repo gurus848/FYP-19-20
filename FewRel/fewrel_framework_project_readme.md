@@ -11,6 +11,7 @@
 * 6-way 4-shot with N/A checkpoint: https://drive.google.com/open?id=1hdl81PcWIaA6CyJw38VGTcRs6MQ1ipfH
 * re3d 5-way 3-shot N/A: https://drive.google.com/open?id=16v_GypSQZF6rDHyzVxDS-1cTI7QA90dY
 * re3d 5-way 3-shot: https://drive.google.com/open?id=18E9PBKpb9iOHimb9I8j2T95CAs_nWG1v
+* combined 5-way 3-shot: https://drive.google.com/open?id=1u_ty9IcP5SPb-M0GpF6bYY8lJ3itp3WT
 * can't train on prof song's gpus, not enough vram. the hpc computers have enough vram, but i couldn't get pytorch to work on them, it uses a 10 year old version of linux.... 
 * however testing using this code does actually work on the gpu (but you would need to use cuda pytorch (refer to pytorch.org) and whereever you are using model do "model = model.cuda()", and also "tensor=tensor.cuda()"). refer to test_script.py
 * on my laptop cpu this code takes about 2 seconds per query, on the gpu it's a lot faster, runs in under 1 second. the speed seems fine, but if there are a lot of queries it will take a decent amount of time to run.

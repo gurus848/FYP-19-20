@@ -4,6 +4,7 @@ import random
 from fyp_detection_functions import Detector
 from textblob import TextBlob
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import math
 
 class DataLoader:
     """
@@ -44,10 +45,11 @@ class DataLoader:
                     tail_indices = list(range(i,i+len(tokenized_tail)))
                     break
             if head_indices is None or tail_indices is None:
-                print("Problem sentence: {}".format(sentence))
-                print("Problem sentence head: {}".format(head))
-                print("Problem sentence tail: {}".format(tail))
-                raise ValueError
+                error_string = ""
+                error_string += ("Problem sentence: {}\n".format(sentence))
+                error_string += ("Problem sentence head: {}\n".format(head))
+                error_string += ("Problem sentence tail: {}\n".format(tail))
+                raise ValueError(error_string)
     
     @staticmethod
     def load_relation_support_csv_dataframe(filepath):
@@ -59,8 +61,8 @@ class DataLoader:
         df = pd.read_csv(filepath)
         try:
             DataLoader.check_loaded_relation_support_dataframe(df)
-        except ValueError:
-            raise ValueError("In the mentioned dataset {} at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly.".format(filepath))
+        except ValueError as e:
+            raise ValueError("In the provided relation support dataset at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly. \n {}".format(str(e)))
         return df
     
     @staticmethod
@@ -123,8 +125,8 @@ class DataLoader:
         df = pd.read_csv(filepath)
         try:
             DataLoader.check_loaded_relation_support_dataframe(df)
-        except ValueError:
-            raise ValueError("In the mentioned dataset {} at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly.".format(filepath))
+        except ValueError as e:
+            raise ValueError("In the provided query dataset at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly. \n {}".format(str(e)))
         
         for _, row in df.iterrows():
             queries.append({'sentence':row['sentence'], 'head':row['head'], 'tail':row['tail']})
@@ -137,7 +139,7 @@ class DetectionFramework:
     """
         Runs the detection model/algorithm on queries in different ways.
     """
-    def __init__(self, ckpt_path="checkpoint/pair-bert-train_wiki-val_wiki-5-1.pth.tar"):
+    def __init__(self, ckpt_path):
         """
         Initializer
         """
@@ -145,6 +147,7 @@ class DetectionFramework:
         self.support = []   #stores the list of relation support examples which have been loaded
         self.detector = Detector(chpt_path=ckpt_path)   #the detector/model
         self.queries = []
+        self.ckpt_path = ckpt_path
     
     def _add_support(self, support):
         """
@@ -183,10 +186,15 @@ class DetectionFramework:
     def load_queries_csv(self, path):
         """
         Loads the queries which are contained at the passed path. 
+        Detects if the head and tail are specified. If so, these are loaded using a special function.
         """
-        self.queries = DataLoader.load_query_csv(path)
+        df = pd.read_csv(path)
+        if "head" in df.columns:
+            self._load_queries_predefined_head_tail_csv(path)
+        else:
+            self.queries = DataLoader.load_query_csv(path)
         
-    def load_queries_predefined_head_tail_csv(self, path):
+    def _load_queries_predefined_head_tail_csv(self, path):
         """
         Loads the queries which are contained at the passed path, these queries are supposed to have the head and tail to use defined. 
         """
@@ -204,6 +212,19 @@ class DetectionFramework:
             self.queries.append({'sentence':str(sentence)})
         
         self.detect()
+        
+    def load_news_article_queries(self):
+        pass #TODO
+    
+    def load_text_file_queries(self):
+        pass #TODO
+    
+    def _calculate_conf(self, logits, order, pred):
+        exp = list(float(i) for i in logits[0][0])
+        exp = [math.exp(i) for i in exp]
+        if pred == 'NA':
+            return exp[-1]*100/sum(exp)
+        return exp[order.index(pred)]*100/sum(exp)
     
     def detect(self, N=5, rt_results=None, cancel_flag=[False]):
         """
@@ -242,7 +263,11 @@ class DetectionFramework:
                     for k in sorted(ss):
                         vader_sentiment += ('{0}: {1}, '.format(k, ss[k]))
                         
-#                     result.append(blob.sentiment)
+                    #TODO: fix sentiment analyses
+#                 result.append(blob.sentiment)
+                    result.append('Positive')
+                    order = list(r['name'] for r in self.support)
+                    result.append(str(int(self._calculate_conf(result[-2], order, result[3]))) + "%")
                     result.append(vader_sentiment)
                     results.append(result)
 
@@ -253,7 +278,11 @@ class DetectionFramework:
                     result = self.detector.run_detection_algorithm(q, self.support)
                     self.detector.print_result(*(result[:-1]))
                         
-#                     result.append(blob.sentiment)
+                    #TODO: fix sentiment analyses
+#                 result.append(blob.sentiment)
+                    result.append('Positive')
+                    order = list(r['name'] for r in self.support)
+                    result.append(str(int(self._calculate_conf(result[-2], order, result[3]))) + "%")
                     result.append(vader_sentiment)
                     results.append(result)
                     if rt_results is not None:
@@ -268,8 +297,12 @@ class DetectionFramework:
                 vader_sentiment = ""
                 for k in sorted(ss):
                     vader_sentiment += ('{0}: {1}, '.format(k, ss[k]))
-                    
+                   
+                #TODO: fix sentiment analyses
 #                 result.append(blob.sentiment)
+                result.append('Positive')
+                order = list(r['name'] for r in self.support)
+                result.append(str(int(self._calculate_conf(result[-2], order, result[3]))) + "%")
                 result.append(vader_sentiment)
                 results.append(result)
                 if rt_results is not None:
