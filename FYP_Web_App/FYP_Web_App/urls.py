@@ -16,6 +16,16 @@ Including another URLconf
 from django.conf.urls import url
 from django.contrib import admin
 
+from fyp_website import views
+
 urlpatterns = [
+    url(r'^$', views.home, name='home'),
     url(r'^admin/', admin.site.urls),
+    url(r'^query_csv_upload/', views.query_csv_upload, name='query_csv_upload'),
+    url(r'^rel_sup_csv_upload/',views.rel_sup_csv_upload, name='rel_sup_csv_upload'),
+    url(r'^get_analysis_results/', views.get_analysis_results, name='get_analysis_results'),
+    url(r'^start_analysis/', views.start_analysis, name='start_analysis'),
+    url(r'^cancel_analysis/', views.cancel_analysis, name='cancel_analysis'),
+    url(r'^text_file_upload/', views.text_file_upload, name='text_file_upload'),
+    url(r'^select_news_article/', views.select_news_article, name='select_news_article')
 ]

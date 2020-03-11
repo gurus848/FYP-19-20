@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Web App FYP Relation Extraction{% endblock %}
+
+{% block content %}
+<div class="row mt-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                Upload Relation Support Dataset CSV
+            </div>
+            <div class="card-body">
+                <form method="post" id="rel_sup_csv_form">
+                    {% csrf_token %}
+                    {% include 'form_template.html' with form=rel_sup_csv_form %}
+                    <button type="submit" class="btn btn-success">Upload</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                Upload Query CSV Dataset
+            </div>
+            <div class="card-body">
+                <form method="post" id="query_csv_form">
+                    {% csrf_token %}
+                    {% include 'form_template.html' with form=queries_csv_form %}
+                    <button type="submit" class="btn btn-success">Upload</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                Upload Text File
+            </div>
+            <div class="card-body">
+                <form method="post" id="text_file_form">
+                    {% csrf_token %}
+                    {% include 'form_template.html' with form=text_file_form %}
+                    <button type="submit" class="btn btn-success">Upload</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                Parse Newspaper Article
+            </div>
+            <div class="card-body">
+                <form method="post" id="news_article_form">
+                    {% csrf_token %}
+                    {% include 'form_template.html' with form=article_url_form %}
+                    <button type="submit" class="btn btn-success">Select</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                Run Analysis
+            </div>
+            <div class="card-body">
+                <p id="analysis_status_indicator">Analysis Status: Not Running</p>
+                <label for="query_datset_type_selection">Select Query Dataset Type: </label>
+                <div class="btn-group btn-group-toggle" data-toggle="buttons" id="query_datset_type_selection">
+                  <label class="btn btn-secondary active">
+                    <input type="radio" name="options" value="csv_option" autocomplete="off" checked> CSV
+                  </label>
+                  <label class="btn btn-secondary">
+                    <input type="radio" name="options" value="txt_option" autocomplete="off"> Text File
+                  </label>
+                  <label class="btn btn-secondary">
+                    <input type="radio" name="options" value="url_option" autocomplete="off"> News Article URL
+                  </label>
+                </div>
+                <br/>
+                <label class="mt-3" for="ckpt_selector">Choose model checkpoint: </label>
+                <select id="ckpt_selector">
+                    {% for i in ckpts %}
+                        <option value="{{ i }}"> {{ i }} </option>
+                    {% endfor %}
+                </select>
+                <br/>
+                <button id="do_analysis_button" class="btn btn-primary mt-3">Do Analysis</button>
+                <button id="cancel_analysis_button" class="btn btn-danger mt-3">Cancel Analysis</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                Analysis Results
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead class="thead-inverse">
+                        <tr>
+                        <th>Sentence</th>
+                        <th>Head</th>
+                        <th>Tail</th>
+                        <th>Predicted Relation</th>
+                        <th>Predicted Sentiment</th>
+                        <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="result_table">
+                        {% for i in data %}
+                            <tr>
+                                <td>{{ i.sentence }}</td>
+                                <td>{{ i.head }}</td>
+                                <td>{{ i.tail }}</td>
+                                <td>{{ i.pred_relation }}</td>
+                                <td>{{ i.pred_sentiment }}</td>
+                                <td>{{ i.conf }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                Errors During Analysis
+            </div>
+            <div class="card-body" id="errors_div">
+                <p id="error_here_yet" class="text-muted"> Nothing here yet </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block javascript %}
+<script src="{% static 'scripts/home_main.js' %}"></script>
+{% endblock %}

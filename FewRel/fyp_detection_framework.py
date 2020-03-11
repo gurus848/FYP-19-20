@@ -2,6 +2,9 @@ import spacy
 import pandas as pd
 import random
 from fyp_detection_functions import Detector
+from textblob import TextBlob
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import math
 
 class DataLoader:
     """
@@ -42,10 +45,11 @@ class DataLoader:
                     tail_indices = list(range(i,i+len(tokenized_tail)))
                     break
             if head_indices is None or tail_indices is None:
-                print("Problem sentence: {}".format(sentence))
-                print("Problem sentence head: {}".format(head))
-                print("Problem sentence tail: {}".format(tail))
-                raise ValueError
+                error_string = ""
+                error_string += ("Problem sentence: {}\n".format(sentence))
+                error_string += ("Problem sentence head: {}\n".format(head))
+                error_string += ("Problem sentence tail: {}\n".format(tail))
+                raise ValueError(error_string)
     
     @staticmethod
     def load_relation_support_csv_dataframe(filepath):
@@ -57,8 +61,8 @@ class DataLoader:
         df = pd.read_csv(filepath)
         try:
             DataLoader.check_loaded_relation_support_dataframe(df)
-        except ValueError:
-            raise ValueError("In the mentioned dataset {} at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly.".format(filepath))
+        except ValueError as e:
+            raise ValueError("In the provided relation support dataset at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly. \n {}".format(str(e)))
         return df
     
     @staticmethod
@@ -121,8 +125,8 @@ class DataLoader:
         df = pd.read_csv(filepath)
         try:
             DataLoader.check_loaded_relation_support_dataframe(df)
-        except ValueError:
-            raise ValueError("In the mentioned dataset {} at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly.".format(filepath))
+        except ValueError as e:
+            raise ValueError("In the provided query dataset at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly. \n {}".format(str(e)))
         
         for _, row in df.iterrows():
             queries.append({'sentence':row['sentence'], 'head':row['head'], 'tail':row['tail']})
@@ -135,7 +139,7 @@ class DetectionFramework:
     """
         Runs the detection model/algorithm on queries in different ways.
     """
-    def __init__(self, ckpt_path="checkpoint/pair-bert-train_wiki-val_wiki-5-1.pth.tar"):
+    def __init__(self, ckpt_path):
         """
         Initializer
         """
@@ -143,6 +147,7 @@ class DetectionFramework:
         self.support = []   #stores the list of relation support examples which have been loaded
         self.detector = Detector(chpt_path=ckpt_path)   #the detector/model
         self.queries = []
+        self.ckpt_path = ckpt_path
     
     def _add_support(self, support):
         """
@@ -181,10 +186,15 @@ class DetectionFramework:
     def load_queries_csv(self, path):
         """
         Loads the queries which are contained at the passed path. 
+        Detects if the head and tail are specified. If so, these are loaded using a special function.
         """
-        self.queries = DataLoader.load_query_csv(path)
+        df = pd.read_csv(path)
+        if "head" in df.columns:
+            self._load_queries_predefined_head_tail_csv(path)
+        else:
+            self.queries = DataLoader.load_query_csv(path)
         
-    def load_queries_predefined_head_tail_csv(self, path):
+    def _load_queries_predefined_head_tail_csv(self, path):
         """
         Loads the queries which are contained at the passed path, these queries are supposed to have the head and tail to use defined. 
         """
@@ -197,18 +207,33 @@ class DetectionFramework:
         """
         df = pd.read_csv("../data/extracted_article_data.csv")
         article_info = df.loc[index]
-        for sentence in article_info['text'].split(". "):
-            self.queries.append({'sentence':sentence})
+        t = TextBlob(article_info['text'])
+        for sentence in t.sentences:
+            self.queries.append({'sentence':str(sentence)})
         
         self.detect()
+        
+    def load_news_article_queries(self):
+        pass #TODO
     
-    def detect(self, N=5):
+    def load_text_file_queries(self):
+        pass #TODO
+    
+    def _calculate_conf(self, logits, order, pred):
+        exp = list(float(i) for i in logits[0][0])
+        exp = [math.exp(i) for i in exp]
+        if pred == 'NA':
+            return exp[-1]*100/sum(exp)
+        return exp[order.index(pred)]*100/sum(exp)
+    
+    def detect(self, N=5, rt_results=None, cancel_flag=[False]):
         """
             Runs the detection algorithm for the particular queries
             
             queries - the set of queries to run the algorithm on
             N - for N-way detection. TODO: To be implemented in the future. Currently ALL of the relations which are in the support dataset are used in the N-way prediction, even if there are less than or greater than 5.
-            
+            rt_results - real time results list - if specified, then the analysis results will be added to this list as they are evaluated.
+            cancel_flag - set the index 0 element to True if you want the analysis to be cancelled.
         """
         if len(self.support) == 0:
             raise ValueError("No relation support has been added!")
@@ -217,9 +242,14 @@ class DetectionFramework:
             raise ValueError("No queries have been added!")
             
         results = []
+        sid = SentimentIntensityAnalyzer()
         
         for q in self.queries:
+            if cancel_flag[0]:
+                break
+            
             # for some reason the python combinations function returns the head the tail consistently backwards
+            sentence = q['sentence']
             if 'head' not in q:
                 #head and tail are not predefined, so NER is used to find the potential heads and tails
                 for tail, head in self.detector.get_head_tail_pairs(q['sentence']):    #iterating through all possible head and tail pairs
@@ -227,6 +257,18 @@ class DetectionFramework:
                     q['tail'] = tail
                     result = self.detector.run_detection_algorithm(q, self.support)
                     self.detector.print_result(*(result[:-1]))
+#                     blob = TextBlob(sentence)   #using textblob for sentiment analysis
+                    ss = sid.polarity_scores(sentence)   #using nltk and vader
+                    vader_sentiment = ""
+                    for k in sorted(ss):
+                        vader_sentiment += ('{0}: {1}, '.format(k, ss[k]))
+                        
+                    #TODO: fix sentiment analyses
+#                 result.append(blob.sentiment)
+                    result.append('Positive')
+                    order = list(r['name'] for r in self.support)
+                    result.append(str(int(self._calculate_conf(result[-2], order, result[3]))) + "%")
+                    result.append(vader_sentiment)
                     results.append(result)
 
                     tail, head = head, tail   #for testing
@@ -235,13 +277,35 @@ class DetectionFramework:
                     q['tail'] = tail
                     result = self.detector.run_detection_algorithm(q, self.support)
                     self.detector.print_result(*(result[:-1]))
+                        
+                    #TODO: fix sentiment analyses
+#                 result.append(blob.sentiment)
+                    result.append('Positive')
+                    order = list(r['name'] for r in self.support)
+                    result.append(str(int(self._calculate_conf(result[-2], order, result[3]))) + "%")
+                    result.append(vader_sentiment)
                     results.append(result)
+                    if rt_results is not None:
+                        rt_results.append(result)
             else:
                 #the head and tail are predefined in the query, so just those are used.
                 
                 result = self.detector.run_detection_algorithm(q, self.support)
                 self.detector.print_result(*(result[:-1]))
+#                 blob = TextBlob(sentence)
+                ss = sid.polarity_scores(sentence)   #using nltk and vader
+                vader_sentiment = ""
+                for k in sorted(ss):
+                    vader_sentiment += ('{0}: {1}, '.format(k, ss[k]))
+                   
+                #TODO: fix sentiment analyses
+#                 result.append(blob.sentiment)
+                result.append('Positive')
+                order = list(r['name'] for r in self.support)
+                result.append(str(int(self._calculate_conf(result[-2], order, result[3]))) + "%")
+                result.append(vader_sentiment)
                 results.append(result)
-
+                if rt_results is not None:
+                    rt_results.append(result)
 
         return results

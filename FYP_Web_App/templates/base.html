@@ -1,0 +1,27 @@
+{% load static %}<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{% block title %}Default Title{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    {% block stylesheet %}{% endblock %}
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="{% url 'home' %}">FYP RelEx</a>
+      </div>
+    </nav>
+    <main>
+        <div class="py-5">
+        <div class="container" id="overall_container">
+      {% block content %}
+      {% endblock %}
+        </div>
+        </div>
+    </main>
+      <script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
+      <script src="{% static 'scripts/bootstrap.min.js' %}"></script>
+    {% block javascript %}{% endblock %}
+  </body>
+</html>
