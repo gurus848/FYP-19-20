@@ -11,3 +11,6 @@ class TextDatasetForm(forms.Form):
     
 class NewsArticleURLForm(forms.Form):
     news_article_url = forms.URLField()
+    
+class IndividualSentenceForm(forms.Form):
+    sentence = forms.CharField()

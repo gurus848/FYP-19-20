@@ -16,57 +16,8 @@
                     {% include 'form_template.html' with form=rel_sup_csv_form %}
                     <button type="submit" class="btn btn-success">Upload</button>
                 </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-3">
-    <div class="col">
-        <div class="card">
-            <div class="card-header">
-                Upload Query CSV Dataset
-            </div>
-            <div class="card-body">
-                <form method="post" id="query_csv_form">
-                    {% csrf_token %}
-                    {% include 'form_template.html' with form=queries_csv_form %}
-                    <button type="submit" class="btn btn-success">Upload</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-3">
-    <div class="col">
-        <div class="card">
-            <div class="card-header">
-                Upload Text File
-            </div>
-            <div class="card-body">
-                <form method="post" id="text_file_form">
-                    {% csrf_token %}
-                    {% include 'form_template.html' with form=text_file_form %}
-                    <button type="submit" class="btn btn-success">Upload</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-3">
-    <div class="col">
-        <div class="card">
-            <div class="card-header">
-                Parse Newspaper Article
-            </div>
-            <div class="card-body">
-                <form method="post" id="news_article_form">
-                    {% csrf_token %}
-                    {% include 'form_template.html' with form=article_url_form %}
-                    <button type="submit" class="btn btn-success">Select</button>
-                </form>
+                <br/>
+                <p id="sup_relations_p">Currently Supported Relations: {{ sup_relations }}</p>
             </div>
         </div>
     </div>
@@ -77,22 +28,11 @@
         <div class="card">
             <div class="card-header">
                 Run Analysis
+                <div class="spinner-border float-right analysis_status_spinner" role="status" ></div>
             </div>
             <div class="card-body">
                 <p id="analysis_status_indicator">Analysis Status: Not Running</p>
-                <label for="query_datset_type_selection">Select Query Dataset Type: </label>
-                <div class="btn-group btn-group-toggle" data-toggle="buttons" id="query_datset_type_selection">
-                  <label class="btn btn-secondary active">
-                    <input type="radio" name="options" value="csv_option" autocomplete="off" checked> CSV
-                  </label>
-                  <label class="btn btn-secondary">
-                    <input type="radio" name="options" value="txt_option" autocomplete="off"> Text File
-                  </label>
-                  <label class="btn btn-secondary">
-                    <input type="radio" name="options" value="url_option" autocomplete="off"> News Article URL
-                  </label>
-                </div>
-                <br/>
+
                 <label class="mt-3" for="ckpt_selector">Choose model checkpoint: </label>
                 <select id="ckpt_selector">
                     {% for i in ckpts %}
@@ -100,7 +40,47 @@
                     {% endfor %}
                 </select>
                 <br/>
-                <button id="do_analysis_button" class="btn btn-primary mt-3">Do Analysis</button>
+                <label for="query_datset_type_selection">Select Query Dataset Type: </label>
+                <div class="btn-group btn-group-toggle" data-toggle="buttons" id="query_datset_type_selection">
+                  <label class="btn btn-secondary active">
+                    <input type="radio" name="options" value="csv_option" id="csv_option" autocomplete="off" checked> CSV
+                  </label>
+                  <label class="btn btn-secondary">
+                    <input type="radio" name="options" value="txt_option" id="txt_option" autocomplete="off"> Text File
+                  </label>
+                  <label class="btn btn-secondary">
+                    <input type="radio" name="options" value="url_option" id="url_option" autocomplete="off"> News Article URL
+                  </label>
+                  <label class="btn btn-secondary">
+                    <input type="radio" name="options" value="ind_sentence_option" id="ind_sentence_option" autocomplete="off"> Individual Sentence
+                  </label>
+                </div>
+                
+                <br/>
+                
+                <form method="post" id="query_csv_form">
+                    {% csrf_token %}
+                    {% include 'form_template.html' with form=queries_csv_form %}
+                    <button type="submit" class="btn btn-primary">Do Analysis</button>
+                </form>
+                
+                <form method="post" id="text_file_form">
+                    {% csrf_token %}
+                    {% include 'form_template.html' with form=text_file_form %}
+                    <button type="submit" class="btn btn-primary">Do Analysis</button>
+                </form>
+                
+                <form method="post" id="news_article_form">
+                    {% csrf_token %}
+                    {% include 'form_template.html' with form=article_url_form %}
+                    <button type="submit" class="btn btn-primary">Do Analysis</button>
+                </form>
+                
+                <form method="post" id="ind_sent_form">
+                    {% csrf_token %}
+                    {% include 'form_template.html' with form=ind_sent_form %}
+                    <button type="submit" class="btn btn-primary">Do Analysis</button>
+                </form>
                 <button id="cancel_analysis_button" class="btn btn-danger mt-3">Cancel Analysis</button>
             </div>
         </div>
@@ -112,6 +92,7 @@
         <div class="card">
             <div class="card-header">
                 Analysis Results
+                <div class="spinner-border float-right analysis_status_spinner" role="status" ></div>
             </div>
             <div class="card-body">
                 <table class="table">
@@ -133,7 +114,7 @@
                                 <td>{{ i.tail }}</td>
                                 <td>{{ i.pred_relation }}</td>
                                 <td>{{ i.pred_sentiment }}</td>
-                                <td>{{ i.conf }}</td>
+                                <td>{{ i.conf|stringformat:"i"|add:"%" }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>

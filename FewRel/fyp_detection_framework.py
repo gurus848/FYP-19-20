@@ -267,7 +267,7 @@ class DetectionFramework:
 #                 result.append(blob.sentiment)
                     result.append('Positive')
                     order = list(r['name'] for r in self.support)
-                    result.append(str(int(self._calculate_conf(result[-2], order, result[3]))) + "%")
+                    result.append(int(self._calculate_conf(result[-2], order, result[3])))
                     result.append(vader_sentiment)
                     results.append(result)
 
@@ -282,7 +282,7 @@ class DetectionFramework:
 #                 result.append(blob.sentiment)
                     result.append('Positive')
                     order = list(r['name'] for r in self.support)
-                    result.append(str(int(self._calculate_conf(result[-2], order, result[3]))) + "%")
+                    result.append(int(self._calculate_conf(result[-2], order, result[3])))
                     result.append(vader_sentiment)
                     results.append(result)
                     if rt_results is not None:
@@ -302,7 +302,7 @@ class DetectionFramework:
 #                 result.append(blob.sentiment)
                 result.append('Positive')
                 order = list(r['name'] for r in self.support)
-                result.append(str(int(self._calculate_conf(result[-2], order, result[3]))) + "%")
+                result.append(int(self._calculate_conf(result[-2], order, result[3])))
                 result.append(vader_sentiment)
                 results.append(result)
                 if rt_results is not None:

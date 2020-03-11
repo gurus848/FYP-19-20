@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'fyp_website'
+    'fyp_website',
+    'widget_tweaks'
 ]
 
 MIDDLEWARE = [
