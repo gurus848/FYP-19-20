@@ -16,11 +16,7 @@ __pycache__
 __pycache__/
 __pycache__/*
 ec2init.sh
-models/bert_large/*
-models/spanbert_large/*
-models/coref-ee/*
-notebook/modelling/.data/*
-notebook/modelling/.vector_cache/*
-data/sst/*
-data/stanfordSentimentTreebank/*
-models/mulrel-nel/*
+models/bert_large/
+models/spanbert_large/
+notebook/modelling/.data/
+notebook/modelling/.vector_cache/

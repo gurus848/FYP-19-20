@@ -2,14 +2,14 @@
 # TODO: make it return the data as a specialized data structure rather than just text
 import os
 
-filename = "read_dossier.py"
+proj_path = __file__.split("src")[0]
 
 def read_dossier():
     # store information
     articles = []
     # open file
     # relative path to file used, always do this
-    dossier = open(os.path.abspath(filename + '/../../../..') + '/data/Steele_dossier.txt', 'r',
+    dossier = open(proj_path + 'data/Steele_dossier.txt', 'r',
                    encoding='ascii', errors='ignore').read()
     # split the individual texts
     texts = dossier.split("-----------------------------------------------------------------------------------")
