@@ -18,6 +18,8 @@ For neuralcoref package, might need to install it using 'pip3 uninstall neuralco
 
 If using jupyter lab/notebook, make sure that you configure it correctly so that it uses the virtual environment's python interpreter rather than the systemwide on.
 
+The requirements_old.txt in the main project folder is old, use FewRel/requirements.txt instead. 
+
 To use `models/OpenNRE`, set the `PYTHONPATH` variable to `/path-to/FYP-19-20/models/OpenNRE` in .bashrc. 
 
 If the dependency library `flair` from `requirements.txt` fails to download, try:

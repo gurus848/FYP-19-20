@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Account Information
+{% endblock %}
+
+{% block content %}
+<ol class="breadcrumb my-4">
+  <li class="breadcrumb-item active">Edit Account Information</li>
+</ol>
+<form method="post" novalidate>
+              {% csrf_token %}
+              {% include 'form_template.html' %}
+              <button type="submit" class="btn btn-primary btn-block">Update Details</button>
+            </form>
+{% endblock %}

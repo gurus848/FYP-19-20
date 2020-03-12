@@ -306,3 +306,8 @@ $("input:radio").change(function () {
         $('#ind_sent_form').show();
    }
 });
+
+//when the download results csv button is clicked
+$('#download_results_csv').click(function() {
+   //TODO 
+});

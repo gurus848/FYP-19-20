@@ -1,3 +1,4 @@
+# for fyp_website app
 from django.http import HttpResponse
 from django.shortcuts import render
 from .forms import RelationSupportCSVDatasetForm, QueriesCSVDatasetForm, TextDatasetForm, NewsArticleURLForm, IndividualSentenceForm
@@ -5,14 +6,16 @@ import json
 from django.views.decorators.cache import never_cache
 import os
 import sys
-sys.path.insert(0, os.environ['FEWREL_PATH'])
+sys.path.insert(0, os.environ['FEWREL_PATH'])   #so that the relation extraction framework can be loaded.
 from fyp_detection_framework import DetectionFramework
 from threading import Thread
 from .models import ExtractedRelation
 import pandas as pd
+from django.contrib.auth.decorators import login_required
 
 
 @never_cache
+@login_required
 def home(request):
     """
         Renders the home page of the app.
@@ -29,12 +32,22 @@ def home(request):
     return render(request, 'home.html', {'rel_sup_csv_form': rel_sup_csv_form, 'queries_csv_form': queries_csv_form, 'text_file_form': text_file_form, 'article_url_form': article_url_form, 'ind_sent_form':ind_sent_form, 'data': data, 'ckpts': ckpts, 'sup_relations':sup_relations})
 
 @never_cache
+@login_required
 def sna_viz(request):
     """
         TODO
         Renders the SNA and vizualizations page
     """
     return render(request, 'sna_viz.html')
+
+@never_cache
+@login_required
+def dataset_constructor(request):
+    """
+        TODO
+        Renders the relation support dataset constructor page
+    """
+    return render(request, 'dataset_cntr.html')
 
 sup_relations = ""
 def _get_sup_relations():
@@ -140,7 +153,7 @@ cancel_flag=[False]  #flag used to indicate whether the analysis should be cance
 errors = []  #list of the errors whcih have been generated
 error_i = 0  #index from which new errors can be sent
 d = None #
-def do_analysis(ckpt, queries_type):
+def do_analysis(ckpt, queries_type, user):
     """
         Runs the actual analysis in a different thread
     """
@@ -185,7 +198,7 @@ def do_analysis(ckpt, queries_type):
             with open("temp/url.txt") as f:
                 src = f.read()
         for r in results:
-            er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],source=src,sentiment=r[5],conf=r[6],ckpt=ckpt)
+            er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],source=src,sentiment=r[5],conf=r[6],ckpt=ckpt, user=user)
             er.save()
         currently_analyzing = False
     except ValueError as e:
@@ -201,7 +214,7 @@ def _start_analysis(request):
 
     if not currently_analyzing:
         cancel_flag[0] = False
-        t = Thread(target=do_analysis, args=(request.POST.get('ckpt'),request.POST.get('queries_type'),))
+        t = Thread(target=do_analysis, args=(request.POST.get('ckpt'),request.POST.get('queries_type'),request.user,))
         t.start()
         return HttpResponse(
                 json.dumps({"success": "analysis started"}),

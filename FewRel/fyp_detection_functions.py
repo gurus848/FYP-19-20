@@ -198,7 +198,7 @@ class Detector:
             fusion_set['mask'] = fusion_set['mask'].cuda()
 
         logits, pred = self.model(fusion_set, N, K, Q)
-        return (query['sentence'], head, tail, relation_data[pred.item()]['name'] if pred.item() < len(relation_data) else 'NA', logits)  #returns (sentence, head, tail, prediction relation name)
+        return [query['sentence'], head, tail, relation_data[pred.item()]['name'] if pred.item() < len(relation_data) else 'NA', logits]  #returns (sentence, head, tail, prediction relation name)
         
     def print_result(self,sentence, head, tail, prediction):
         """

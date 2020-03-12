@@ -1,35 +1,66 @@
 {% load static %}<!doctype html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title>{% block title %}Default Title{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
-    {% block stylesheet %}{% endblock %}
-  </head>
-  <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-      <div class="container">
-        <a class="navbar-brand" href="{% url 'home' %}">FYP RelEx</a>
-      </div>
-        <ul class="navbar-nav">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Default Title{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+  {% block stylesheet %}{% endblock %}
+</head>
+<body>
+{% block body %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <a class="navbar-brand" href="{% url 'home' %}">FYP RelEx</a>
+
+  <div class="collapse navbar-collapse w-100 order-0 order-md-0 dual-collapse2">
+    <ul class="navbar-nav mr-auto">
       <li class="nav-item" id="home_nav">
         <a class="nav-link" href="{% url 'home' %}">Rel Ex</a>
       </li>
       <li class="nav-item" id="sna_viz_nav">
         <a class="nav-link" href="{% url 'sna_viz' %}">SNA and Viz</a>
       </li>
+      <li class="nav-item" id="dataset_cntr_nav">
+        <a class="nav-link" href="{% url 'dataset_cntr' %}">Dataset Constructor</a>
+      </li>
     </ul>
-    </nav>
-    <main>
-        <div class="py-5">
-        <div class="container" id="overall_container">
+  </div>
+  <div class="collapse navbar-collapse w-100 order-3 dual-collapse2" id="mainMenu">
+    <ul class="navbar-nav ml-auto">
+      {% if user.is_authenticated %}
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="userMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          {{ user.username }}
+        </a>
+        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userMenu">
+          <a class="dropdown-item" href="{% url 'account_info' %}">My account</a>
+          <a class="dropdown-item" href="{% url 'password_change' %}">Change password</a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="{% url 'logout' %}">Log out</a>
+        </div>
+      </li>
+      {% else %}
+      <li class="nav-item my-2 my-sm-0">
+        <a href="{% url 'login' %}" class="btn btn-outline-secondary">Log in</a>
+      </li>
+      <li class="nav-item my-2 my-sm-0">
+        <a href="{% url 'signup' %}" class="btn btn-primary ml-2">Sign up</a>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
+
+</nav>
+<main>
+  <div class="py-5">
+    <div class="container" id="overall_container">
       {% block content %}
       {% endblock %}
-        </div>
-        </div>
-    </main>
-      <script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
-      <script src="{% static 'scripts/bootstrap.min.js' %}"></script>
-    {% block javascript %}{% endblock %}
-  </body>
+    </div>
+  </div>
+</main>
+<script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
+<script src="{% static 'scripts/bootstrap.min.js' %}"></script>
+{% block javascript %}{% endblock %}
+{% endblock %}
+</body>
 </html>

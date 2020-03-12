@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.db import models
 
 # Create your models here.
@@ -12,4 +13,4 @@ class ExtractedRelation(models.Model):
     conf = models.IntegerField()
     sentiment = models.CharField(max_length=1000)
     source = models.CharField(max_length=1000)
-    #TODO: add the user also
+    user = models.ForeignKey(User, related_name='extracted_relation', on_delete=models.SET_NULL, null=True)
