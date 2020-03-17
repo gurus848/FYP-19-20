@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Web App FYP Relation Extraction{% endblock %}
+{% block title %}FYP Relation Extraction{% endblock %}
 
 {% block content %}
 <ol class="breadcrumb my-4">
@@ -21,6 +21,7 @@
                 </form>
                 <br/>
                 <p id="sup_relations_p">Currently Supported Relations: {{ sup_relations }}</p>
+                <p id="nk_stat"> Currently {{ nk_stat }}</p>
             </div>
         </div>
     </div>
@@ -99,7 +100,7 @@
                 <div class="spinner-border float-right analysis_status_spinner" role="status" ></div>
             </div>
             <div class="card-body">
-                <table class="table">
+                <table class="table", id="results_table_overall">
                     <thead class="thead-inverse">
                         <tr>
                         <th>Sentence</th>

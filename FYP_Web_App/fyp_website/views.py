@@ -1,5 +1,5 @@
 # for fyp_website app
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from django.shortcuts import render
 from .forms import RelationSupportCSVDatasetForm, QueriesCSVDatasetForm, TextDatasetForm, NewsArticleURLForm, IndividualSentenceForm
 import json
@@ -9,9 +9,11 @@ import sys
 sys.path.insert(0, os.environ['FEWREL_PATH'])   #so that the relation extraction framework can be loaded.
 from fyp_detection_framework import DetectionFramework
 from threading import Thread
-from .models import ExtractedRelation
+from .models import ExtractedRelation, Source
 import pandas as pd
 from django.contrib.auth.decorators import login_required
+from django.utils.html import mark_safe
+from markdown import markdown
 
 
 @never_cache
@@ -29,7 +31,7 @@ def home(request):
     for i in results:
         data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6]})
     ckpts = [f for f in os.listdir(os.environ['FEWREL_PATH'] + "/checkpoint") if '.pth.tar' in f]
-    return render(request, 'home.html', {'rel_sup_csv_form': rel_sup_csv_form, 'queries_csv_form': queries_csv_form, 'text_file_form': text_file_form, 'article_url_form': article_url_form, 'ind_sent_form':ind_sent_form, 'data': data, 'ckpts': ckpts, 'sup_relations':sup_relations})
+    return render(request, 'home.html', {'rel_sup_csv_form': rel_sup_csv_form, 'queries_csv_form': queries_csv_form, 'text_file_form': text_file_form, 'article_url_form': article_url_form, 'ind_sent_form':ind_sent_form, 'data': data, 'ckpts': ckpts, 'sup_relations':sup_relations, 'nk_stat':nk_stat})
 
 @never_cache
 @login_required
@@ -49,12 +51,42 @@ def dataset_constructor(request):
     """
     return render(request, 'dataset_cntr.html')
 
+@never_cache
+@login_required
+def saved_results(request):
+    """
+        Renders the saved_results page
+    """
+    timestamps = []
+    for i in Source.objects.all():
+        timestamps.append({'id':i.source_id, 'val':i.datetime_extracted.strftime('%d/%m/%Y %H:%M')})
+    
+    return render(request, 'saved_results.html', {'timestamps':timestamps})
+
+@never_cache
+@login_required
+def help_page(request):
+    """
+        TODO
+        Renders the help page
+    """
+    with open('static/markdown/help_page.md') as f:
+        md_text = f.read()
+    
+    help_text = mark_safe(markdown(md_text, safe_mode='escape'))
+    return render(request, 'help_page.html', {'help_text':help_text})
+
 sup_relations = ""
+nk_stat = ""
 def _get_sup_relations():
-    global sup_relations
+    global sup_relations, nk_stat
     if os.path.exists("temp/relation_support_dataset.csv"):
-        df = pd.read_csv("temp/relation_support_dataset.csv")
+        df = pd.read_csv("temp/relation_support_dataset.csv", engine='python')
         sup_relations = ", ".join(list(df['reldescription'].unique()))
+        N = df['reldescription'].unique().shape[0]
+        K = df[df['reldescription'] == df['reldescription'].loc[0]].shape[0]
+        
+        nk_stat = "{}-way {}-shot".format(N, K)
 _get_sup_relations()
 
 def handle_uploaded_file(f, fname):
@@ -74,7 +106,7 @@ def rel_sup_csv_upload(request):
         handle_uploaded_file(relation_support_dataset, 'temp/relation_support_dataset.csv')
         _get_sup_relations()
         return HttpResponse(
-            json.dumps({'success':'success', 'sup_relations':sup_relations}),
+            json.dumps({'success':'success', 'sup_relations':sup_relations, 'nk_stat':nk_stat}),
             content_type="application/json"
         )
     else:
@@ -197,8 +229,11 @@ def do_analysis(ckpt, queries_type, user):
         elif queries_type == "url_option":
             with open("temp/url.txt") as f:
                 src = f.read()
+        
+        s = Source(source=src)
+        s.save()
         for r in results:
-            er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],source=src,sentiment=r[5],conf=r[6],ckpt=ckpt, user=user)
+            er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],sentiment=r[5],conf=r[6],ckpt=ckpt, user=user, source=s)
             er.save()
         currently_analyzing = False
     except ValueError as e:
@@ -272,3 +307,47 @@ def cancel_analysis(request):
             json.dumps({'success':"success"}),
             content_type="application/json"
         )
+    
+def dwn_analysis_csv(request):
+    """
+        Downloads the results of the anlaysis which have been extracted so far as a csv.
+    """
+    data = []
+    for i in results:
+        data.append((i[0], i[1], i[2], i[3], i[5], i[6]))
+    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence'])
+    df.to_csv("temp/analysis_results.csv", index=False)
+    
+    return FileResponse(open('temp/analysis_results.csv','rb'))
+
+def get_saved_result(request):
+    """
+        handles AJAX GET request to retrieve a previous result
+    """
+    source_id = request.GET.get('source_id')
+    data = []
+    objs = ExtractedRelation.objects.filter(source=source_id)
+    for i in objs:
+        data.append({'sentence':i.sentence, 'head':i.head, 'tail':i.tail, 'pred_relation':i.pred_relation, 'pred_sentiment':i.sentiment, 'conf':i.conf})
+        
+    return HttpResponse(
+            json.dumps({'data':data}),
+            content_type="application/json"
+        )
+
+def dwn_saved_result_csv(request):
+    """
+        handles AJAX GET request to retrieve a previous result as a CSV
+    """
+    source_id = request.GET.get('source_id')
+    data = []
+    objs = ExtractedRelation.objects.filter(source=source_id)
+    for i in objs:
+        data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf))
+    
+    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence'])
+    df.to_csv("temp/analysis_results.csv", index=False)
+    
+    return FileResponse(open('temp/analysis_results.csv','rb'))
+    
+    

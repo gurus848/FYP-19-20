@@ -17,6 +17,7 @@ from itertools import combinations
 from flair.data import Sentence
 from flair.models import SequenceTagger
 from collections import deque
+from textblob import TextBlob
 
 
 class NERCoref(object):
@@ -324,7 +325,8 @@ class NERCoref(object):
 
         # create queries using dataframe
         queries = {'sentence': [], 'head': [], 'tail': []}
-        sentences = [s+"." for s in resolved.split(". ")]
+        t = TextBlob(resolved)
+        sentences = [str(s) for s in t.sentences]
 
         # iterate over potential entity pairs for each sentence in text
         for idx, ent_list in ents.items():

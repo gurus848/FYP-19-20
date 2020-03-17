@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}FYP: Help{% endblock %}
+
+{% block content %}
+<ol class="breadcrumb my-4">
+  <li class="breadcrumb-item active">Help Page</li>
+</ol>
+{{ help_text }}
+{% endblock %}
+
+{% block javascript %}
+<script src="{% static 'scripts/help_page_main.js' %}"></script>
+{% endblock %}

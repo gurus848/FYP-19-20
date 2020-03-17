@@ -80,6 +80,7 @@ $('#rel_sup_csv_form').on('submit', function(event){
             console.log(json); // log the returned json to the console
             $('#sup_relations_p').text('Currently Supported Relations: '+json.sup_relations);
             alert('Uploaded relation support CSV successfully!');
+            $('#nk_stat').text("Currently "+json.nk_stat);
         },
 
         // handle a non-successful response
@@ -309,5 +310,14 @@ $("input:radio").change(function () {
 
 //when the download results csv button is clicked
 $('#download_results_csv').click(function() {
-   //TODO 
+    var x = document.getElementById("results_table_overall").rows.length;
+    if(x > 1){
+        var link = document.createElement('a');
+        link.href = "/dwn_analysis_csv";
+        link.download = "analysis_results.csv";
+        link.click();
+    }else{
+        alert("Error no results yet!");
+    }
+   
 });

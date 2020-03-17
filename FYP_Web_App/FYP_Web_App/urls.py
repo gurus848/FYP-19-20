@@ -28,10 +28,12 @@ urlpatterns = [
     name='password_change'),
     url(r'^settings/password/done/$', auth_views.PasswordChangeDoneView.as_view(template_name='password_change_done.html'),
     name='password_change_done'),
-    url(r'^account_info/', acc_views.account_info, name='account_info'),
+    url(r'^account_info/$', acc_views.account_info, name='account_info'),
     url(r'^logout/$', auth_views.LogoutView.as_view(), name='logout'),
     url(r'^sna_viz/$', views.sna_viz, name='sna_viz'),
-    url(r'^dataset_cntr', views.dataset_constructor, name='dataset_cntr'),
+    url(r'^dataset_cntr/$', views.dataset_constructor, name='dataset_cntr'),
+    url(r'^saved_results/$', views.saved_results, name='saved_results'),
+    url(r'^help/$', views.help_page, name='help_page'),
     url(r'^admin/', admin.site.urls),
     url(r'^query_csv_upload/$', views.query_csv_upload, name='query_csv_upload'),
     url(r'^rel_sup_csv_upload/$',views.rel_sup_csv_upload, name='rel_sup_csv_upload'),
@@ -40,4 +42,7 @@ urlpatterns = [
     url(r'^text_file_upload/$', views.text_file_upload, name='text_file_upload'),
     url(r'^select_news_article/$', views.select_news_article, name='select_news_article'),
     url(r'^ind_sent_query/$', views.select_ind_sentence, name='ind_sent_query'),
+    url(r'^dwn_analysis_csv/$', views.dwn_analysis_csv, name='dwn_analysis_csv'),
+    url(r'^saved_results/get/$', views.get_saved_result, name='get_saved_result'),
+    url(r'^saved_results/get_csv/$', views.dwn_saved_result_csv, name='dwn_saved_result')
 ]
