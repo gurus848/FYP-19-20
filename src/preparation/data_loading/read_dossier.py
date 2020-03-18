@@ -4,7 +4,7 @@ import os
 
 proj_path = __file__.split("src")[0]
 
-def read_dossier():
+def read_dossier(paragraphs=False):
     # store information
     articles = []
     # open file
@@ -41,8 +41,15 @@ def read_dossier():
         # case of assumed gender (important for co-referencing)
         text = text.replace('S/he', 'She').replace('s/he', 'she')
 
-        # Gets rid of newlines and other white space which is mixed in for some reason
-        text = " ".join(text.split())
+        
+        if paragraphs:
+            # convert newlines to paragraphs
+            paras = [p.strip() for p in text.split("\n\n") if len(p) > 2]
+            text = "\n".join(paras)
+        
+        else:
+            # or Gets rid of newlines and other white space which is mixed in for some reason
+            text = " ".join(text.split())
 
         # append to result
         articles.append(text)

@@ -19,6 +19,42 @@ from flair.models import SequenceTagger
 from collections import deque
 
 
+class LazyStringSet(set):
+    """
+        Set of Strings with a lazy
+        accessor. 
+        
+        Attributes:
+            set (set): stores only string 
+            type elementselements.
+    """
+    def __init__(self):
+        self.set = set()
+    
+    def get(self, x):
+        """
+            if the string x is a subset of
+            any element present in the set, 
+            that element will be returned.
+        """
+        assert type(x) == str
+        for i in self.set:
+            if x in i:
+                return i
+        return None
+    
+    def put(self, x):
+        """
+        Inserts new string element x to set.
+        Returns True if inserted, otherwise False.
+        """
+        assert type(x) == str
+        if self.get(x) is None:
+            self.set.add(x)
+            return True
+        return False
+
+
 class NERCoref(object):
     """
         Class Implementation for the Coreference
@@ -30,13 +66,13 @@ class NERCoref(object):
     def __init__(self, bert_model="bert_large", num_gpus=0):
         # BERT Tokenizer
         indent = "========"
-        proj_path = os.getcwd().split("src")[0]
+        proj_path = os.path.abspath(os.path.dirname(__file__)).split("src")[0]
         
         print(indent + " loading BERT Tokenizer " + indent)
         sys.path.insert(1, proj_path + 'models/coref/')
-        from bert import tokenization
+        from models.coref.bert import tokenization
         self.tokenizer = tokenization.FullTokenizer(
-            vocab_file= proj_path + 'models/' + bert_model + '/vocab.txt',
+            vocab_file = proj_path + 'models/' + bert_model + '/vocab.txt',
             do_lower_case=False)
         
         # load NER model
@@ -153,6 +189,9 @@ class NERCoref(object):
 
             elif t in string.punctuation:
                 text += t
+            
+            elif len(text) > 0 and text[-1] == "'" and t in "sS":
+                text += t
 
             else:
                 text += ("", " ")[text != ""] + t
@@ -178,92 +217,136 @@ class NERCoref(object):
         return example
 
 
-    def coref_resolve(self, text, overlap=3):
+    def para_resolve(self, text, markers=False):
         """
             Performs Coreference Resolution for a given text.
-            A waterfall-style partitioning is used for texts
-            since the maximum number of allowed bert tokens 
+            The text is partitioned into paragraphs since
+            the maximum number of allowed bert tokens 
             for Coreference resolution at once is 512. 
 
             Args:
-                text (str): The document to be resolved. 
-
-                overlap (int): number of sentences to overlap
-                    between each partition of the text.
+                text (str): The document to be resolved.
 
             Returns:
                 resolved (str): The input text with all references
                     replaced with first mentions. 
+           
+            Notes:
+                Assumed that the paragraphs are separated by'\n'.
         """
-        # check overlap
-        assert type(overlap)==int and overlap > 0
-
-        # do waterfall: partition the text into full sentences upto 512 bert tokens.
-        sents = deque([sent+"." for sent in text.split(". ") if len(sent) > 2])
-
-        # list of coreference resolved sentences as bert tokens
-        resolved = list()
-        nparts = 0
-
-        while sents:
-            # create partition of 512 bert tokens
-            part = list()
-            nparts += 1
-
-            # insert overlap sentences to partition
-            if len(resolved) >= overlap:
-                l = -1
-                while part.count('.') < overlap+1:
-                    part.append(resolved[l])
-                    l -= 1
-
-            # tokens were inserted in reverse order.
-            part = part[:-1]
-            part.reverse()
-
-            # insert rest  of partition with unresolved sentences 
-            # to partition upto 512 bert tokens
-            while True:
-                if sents:
-                    sent = sents.popleft()
-                else:
-                    break
-
-                sent_tokens = self.tokenizer.tokenize(sent)
-                if len(part) + len(sent_tokens) > 512:
-                    sents.appendleft(sent)
-                    break
-
-                else:
-                    part.extend(sent_tokens)
-
+        paragraphs = text.split('\n')
+        # list of resolved paragraphs as string
+        resolved = list() 
+        # store for inter paragraph first mention of entities
+        global_mentions = LazyStringSet() 
+        
+        for para in paragraphs:
+            # paragraph as BERT Tokens
+            para_tokens = self.tokenizer.tokenize(para)
+            
             # Coreference Prediction
-            jsonline = self.create_jsonline(part)
+            jsonline = self.create_jsonline(para_tokens)
             example = self.predict(jsonline)
-
+            
             # Resolution
+            # store all coreferences
+            corefs = dict()
             for cluster in example["predicted_clusters"]:
-                i, j = cluster[0]
-                first_mention = self.bert_detokenize(example["sentences"][0][i: j+1])
-                # first_mention = first_mention.translate(string.punctuation)
+                i, j = cluster[0] # indices of first mention
+                first_mention = example['sentences'][0][i:j+1]
+                fm_str = self.bert_detokenize(first_mention)
+                
+                # remove possession modifier
+                if "'" in first_mention:
+                    if "s" in first_mention:
+                        first_mention.remove("'")
+                        first_mention.remove("s")
 
-                # reduce longer mentions to two words
-                if first_mention.count(' ') > 1:
-                    dep = next(self.dep_parser(first_mention).sents)
-                    r = dep.root.i
-                    first_mention = str(dep[r-1:r+1])
-                first_mention = self.tokenizer.tokenize(first_mention)
+                    if "S" in first_mention:
+                        first_mention.remove("'")
+                        first_mention.remove("S")
+                
+                # check for global coreference: inter paragraph. 
+                # (Inefficent from detokenizer calls)
+                gm = global_mentions.get(fm_str)
+                if gm:
+                    first_mention = self.tokenizer.tokenize(gm)
+                else:
+                    global_mentions.put(fm_str)
+                
+                # try to reduce longer first mentions to two words
+#                 first_mention = self.bert_detokenize(first_mention)
+#                 first_mention = first_mention.translate(string.punctuation)
+#                 ent_reduced = self.reduce_entity(first_mention)
+#                 first_mention = self.tokenizer.tokenize(ent_reduced)
 
-                # replace other mentions with first mention
-                for (i, j) in cluster[1:]:
-                    part[i: j+1] = first_mention
+                # store other mentions indices by first mention
+                for (i, j) in cluster:
+                    corefs[(i, j)] = first_mention
 
-            # add partition to resolved
-            resolved.extend(part)
+            # replace all mentions with their first mentions
+            para_resolved = list()
+            prev_i, prev_j = 0, 0
+            
+            for (i, j), fm in sorted(corefs.items()):
+                if markers:
+                    fm = ['$'] + fm + ['$']
+                    
+                # check intersection: resolution within resolution
+                if i > prev_i and i < prev_j and j > prev_i and j < prev_j:
+                    # get last resolve
+                    delta = prev_j - prev_i + 1
+                    last_resolve = para_resolved[-delta:]
+                    para_resolved[-delta:] = last_resolve[0:i-prev_i-1] \
+                                             + fm \
+                                             + last_resolve[j-prev_i+1:]
+                else:
+                    para_resolved.extend(para_tokens[prev_j: i-1])
+                    para_resolved.extend(fm)
+                
+                prev_i, prev_j = i, j
+            
+            # add paragraph to resolved
+            para_resolved = self.bert_detokenize(para_resolved)
+            resolved.append(para_resolved)
+        
+        # return the resolved text
+        return "\n".join(resolved)
+    
+    
+    def reduce_entity(self, entname):
+        """
+            Tries to reduce entity mentions longer than
+            two words or resolve multiple entity types
+            in a phrase.
+            
+            Args:
+                entname (str): entity mention to reduce.
+            
+            Returns:
+                ent_reduced (str): entity mention in 
+                    two words.
+        """
+        ent_reduced = ""
+        if entname.count(" ") > 1:
+            ent_reduced = entname
+        
+        else:
+            phrase = Sentence(entname)
+            self.ner_tagger.predict(phrase)
+            fm_ents = phrase.get_spans('ner')
 
-        print(f"{nparts} partitions resolved")
-        return self.bert_detokenize(resolved)
+            # check for multiple entities in mention phrase
+            # assume the dependency root as entity mention
+            if len(fm_ents) > 0:
+                dep = next(self.dep_parser(entname).sents)
+                r = dep.root.idx
 
+                for ent in fm_ents:
+                    if r in range(ent.start_pos, ent.end_pos):
+                        ent_reduced = ent.text
+        return ent_reduced
+                    
 
     def get_entities(self, text, disable_types=None):
         """
@@ -282,7 +365,10 @@ class NERCoref(object):
         """
         ents = dict()
         for idx, s in enumerate(text.split(". ")):
-            sent = Sentence(s)
+            # improves NER prediction
+            sent = [" "+t if t in string.punctuation else t for t in s]
+            sent = "".join(sent)
+            sent = Sentence(sent)
             self.ner_tagger.predict(sent)
             # note only PER and ORG entity types are included
             if disable_types:
@@ -347,15 +433,12 @@ class NERCoref(object):
 
 if __name__ == "__main__":
     resolver = NERCoref()
-
-    # get some text
-    sys.path.append("../../")
     from src.preparation.data_loading import read_dossier
-    dos = read_dossier.read_dossier()[0]
+    dos = read_dossier.read_dossier(paragraphs=True)[0]
+    print(resolver.para_resolve(dos))
 
-    queries = resolver.generate_queries(dos)
-    for i in range(10):
-        print("head:", queries["head"][i], "; tail:", queries["tail"][i])
-        print("sent:", queries["sentence"][i])
-        print()
-
+#     queries = resolver.generate_queries(dos)
+#     for i in range(10):
+#         print("head:", queries["head"][i], "; tail:", queries["tail"][i])
+#         print("sent:", queries["sentence"][i])
+#         print()
