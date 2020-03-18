@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}FYP: Saved Results{% endblock %}
+
+{% block content %}
+<ol class="breadcrumb my-4">
+    <li class="breadcrumb-item active">View Saved Results</li>
+</ol>
+
+<div class="card">
+    <div class="card-header">
+        Retrieve Analysis Results
+    </div>
+    <div class="card-body">
+        <label class="mt-3" for="timestamp_selector">Choose timestamp of results to retrieve:</label>
+        <select id="timestamp_selector">
+            {% for i in timestamps %}
+            <option value="{{ i.id }}"> {{ i.val }} </option>
+            {% endfor %}
+        </select>
+        <br/>
+        <button id="retrieve_result_button" class="btn btn-success">Retrieve</button>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        Analysis Results
+        <button class="btn btn-secondary ml-3" id="download_results_csv">Download as CSV</button>
+    </div>
+    <div class="card-body">
+        <table class="table", id="results_table_overall">
+            <thead class="thead-inverse">
+            <tr>
+                <th>Sentence</th>
+                <th>Head</th>
+                <th>Tail</th>
+                <th>Predicted Relation</th>
+                <th>Predicted Sentiment</th>
+                <th>Confidence</th>
+            </tr>
+            </thead>
+            <tbody id="result_table">
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script src="{% static 'scripts/saved_results_main.js' %}"></script>
+{% endblock %}

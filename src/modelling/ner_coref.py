@@ -17,6 +17,7 @@ from itertools import combinations
 from flair.data import Sentence
 from flair.models import SequenceTagger
 from collections import deque
+from textblob import TextBlob
 
 
 class LazyStringSet(set):
@@ -403,14 +404,15 @@ class NERCoref(object):
                     columns = ['sentence', 'head', 'tail'].
         """
         # resolve
-        resolved = self.coref_resolve(text)
+        resolved = self.para_resolve(text)
 
         # get entities
         ents = self.get_entities(resolved, disable_types=disable_types)
 
         # create queries using dataframe
         queries = {'sentence': [], 'head': [], 'tail': []}
-        sentences = [s+"." for s in resolved.split(". ")]
+        t = TextBlob(resolved)
+        sentences = [str(s) for s in t.sentences]
 
         # iterate over potential entity pairs for each sentence in text
         for idx, ent_list in ents.items():

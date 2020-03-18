@@ -16,6 +16,7 @@ __pycache__
 __pycache__/
 __pycache__/*
 ec2init.sh
+models/*.pt
 models/bert_base_uncased/
 models/bert_large/
 models/spanbert_large/
