@@ -5,6 +5,12 @@ from fyp_detection_functions import Detector
 from textblob import TextBlob
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import math
+import os
+import sys
+from nlp_code import read_news_article
+proj_path = os.path.abspath(os.path.dirname(__file__)).split("FewRel")[0]
+sys.path.insert(1, proj_path + 'src/modelling/')
+from ner_coref import NERCoref
 
 class DataLoader:
     """
@@ -58,7 +64,7 @@ class DataLoader:
             
             The format should be correct: csv should contain 'sentence', 'head', 'tail' and 'reldescription' columns. More could be added later.
         """
-        df = pd.read_csv(filepath)
+        df = pd.read_csv(filepath, engine='python')
         try:
             DataLoader.check_loaded_relation_support_dataframe(df)
         except ValueError as e:
@@ -109,7 +115,7 @@ class DataLoader:
             The file is assumed to be a csv with a column with the heading 'sentence'
         """
         queries = []
-        df = pd.read_csv(filepath)
+        df = pd.read_csv(filepath, engine='python')
         for _, row in df.iterrows():
             queries.append({'sentence':row['sentence']})
         
@@ -122,7 +128,7 @@ class DataLoader:
             The file is assumed to be a csv with a column with the headings 'sentence', 'head' and 'tail'.
         """
         queries = []
-        df = pd.read_csv(filepath)
+        df = pd.read_csv(filepath, engine='python')
         try:
             DataLoader.check_loaded_relation_support_dataframe(df)
         except ValueError as e:
@@ -148,6 +154,7 @@ class DetectionFramework:
         self.detector = Detector(chpt_path=ckpt_path)   #the detector/model
         self.queries = []
         self.ckpt_path = ckpt_path
+#         self.ner_coref = NERCoref()   #very time consuming
     
     def _add_support(self, support):
         """
@@ -188,11 +195,35 @@ class DetectionFramework:
         Loads the queries which are contained at the passed path. 
         Detects if the head and tail are specified. If so, these are loaded using a special function.
         """
-        df = pd.read_csv(path)
+        df = pd.read_csv(path, engine='python')
         if "head" in df.columns:
             self._load_queries_predefined_head_tail_csv(path)
         else:
             self.queries = DataLoader.load_query_csv(path)
+            
+    def load_url(self, url):
+        """
+            Loads a URL.
+        """
+        title = read_news_article.process_online_articles([url])[0]
+        df = pd.read_csv("nlp_code/data/extracted_article_data.csv")
+        text = df[df['title'] == title].loc[0]['text']
+        #TODO: pass through NER and coref
+        
+    def load_text_file(self, path):
+        """
+            Loads from a file.
+        """
+        title = read_news_article.process_file_articles([path])[0]
+        df = pd.read_csv("nlp_code/data/extracted_article_data.csv")
+        text = df[df['title'] == title].loc[0]['text']
+        #TODO: pass through NER and coref
+        
+    def load_ind_sentence(self, text):
+        """
+            Loads an individual sentence.
+        """
+        #TODO: pass thorugh NER and coref.
         
     def _load_queries_predefined_head_tail_csv(self, path):
         """
@@ -205,7 +236,7 @@ class DetectionFramework:
         Processes the newspaper article saved in the extracted_article_data.csv file in the data folder, at the given index in the csv file.
         Assumes that the support has already been loaded.
         """
-        df = pd.read_csv("../data/extracted_article_data.csv")
+        df = pd.read_csv("../data/extracted_article_data.csv", engine='python')
         article_info = df.loc[index]
         t = TextBlob(article_info['text'])
         for sentence in t.sentences:

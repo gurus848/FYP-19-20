@@ -71,7 +71,8 @@ class NERCoref(object):
         
         print(indent + " loading BERT Tokenizer " + indent)
         sys.path.insert(1, proj_path + 'models/coref/')
-        from models.coref.bert import tokenization
+        # from models.coref.bert import tokenization
+        from bert import tokenization
         self.tokenizer = tokenization.FullTokenizer(
             vocab_file = proj_path + 'models/' + bert_model + '/vocab.txt',
             do_lower_case=False)
@@ -433,11 +434,11 @@ class NERCoref(object):
         return queries
 
 
-if __name__ == "__main__":
-    resolver = NERCoref()
-    from src.preparation.data_loading import read_dossier
-    dos = read_dossier.read_dossier(paragraphs=True)[0]
-    print(resolver.para_resolve(dos))
+# if __name__ == "__main__":
+#     resolver = NERCoref()
+#     from src.preparation.data_loading import read_dossier
+#     dos = read_dossier.read_dossier(paragraphs=True)[0]
+#     print(resolver.para_resolve(dos))
 
 #     queries = resolver.generate_queries(dos)
 #     for i in range(10):
