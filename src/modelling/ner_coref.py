@@ -431,16 +431,3 @@ class NERCoref(object):
                 queries['head'].extend(tails)
                 queries['tail'].extend(heads)
         return queries
-
-
-if __name__ == "__main__":
-    resolver = NERCoref()
-    from src.preparation.data_loading import read_dossier
-    dos = read_dossier.read_dossier(paragraphs=True)[0]
-    print(resolver.para_resolve(dos))
-
-#     queries = resolver.generate_queries(dos)
-#     for i in range(10):
-#         print("head:", queries["head"][i], "; tail:", queries["tail"][i])
-#         print("sent:", queries["sentence"][i])
-#         print()
