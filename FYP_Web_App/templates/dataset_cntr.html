@@ -7,6 +7,38 @@
 <ol class="breadcrumb my-4">
   <li class="breadcrumb-item active">Construct Relation Support Dataset</li>
 </ol>
+
+<div class="card card-body mt-3">
+<form id="upload_csv_form">
+    {% csrf_token %}
+    {% include 'form_template.html' %}
+<button class="btn btn-primary" id="upload_existing_csv"> Upload Existing CSV </button>
+    </form>
+</div>
+
+<div class="card mt-3">
+
+    <div class="card-header">
+        Set Support Dataset Parameters
+    </div>
+    <div class="card-body">
+<label for="num_rels"> Number of Relations: </label>
+<input type="text" id="num_rels" class="form-control" value="5"/>
+<br/>
+<label for="num_exs"> Number of Examples per Relation: </label>
+<input type="text" id="num_exs" class="form-control" value="3"/>
+<br/>
+<button class="btn btn-primary" id="update_table"> Update Table </button>
+    </div>
+<br/>
+    
+</div>
+
+<div class = "mt-3" id="table_container">
+
+</div>
+<button class="btn btn-primary mt-3" id="download_as_csv"> Download as CSV </button> 
+
 {% endblock %}
 
 {% block javascript %}

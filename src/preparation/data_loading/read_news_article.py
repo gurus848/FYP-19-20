@@ -141,7 +141,7 @@ def read_nyt_article(htmltext):
     ps = [i for i in ps if 'on Twitter at' not in i.text]
     ps = [i for i in ps if 'contributed reporting' not in i.text]
     ps = [i for i in ps if 'contributed research' not in i.text]
-    text = " ".join([" ".join(i.text.split()) for i in ps])
+    text = "\n ".join([" ".join(i.text.split()) for i in ps])
 
     result_dict = {
         'title': title,
@@ -182,7 +182,7 @@ def read_fox_article(htmltext):
     ps = [i for i in ps if 'Now in print:' not in i.text]
     ps = [i for i in ps if 'This material may not be published,' not in i.text]
     ps = [i for i in ps if not (i.next_element is not None and (i.next_element.name == 'strong' or i.next_element.name == 'em'))]
-    text = " ".join([" ".join(i.text.split()) for i in ps])
+    text = "\n ".join([" ".join(i.text.split()) for i in ps])
 
     result_dict = {
         'title': title,
@@ -210,7 +210,7 @@ def read_other_article(htmltext):
         date = article.publish_date.strftime('%d/%m/%Y')
 
     text = article.text
-    text = "".join(i for i in text if i != '\n')
+    # text = "".join(i for i in text if i != '\n')
     title = article.title
 
     publisher = 'other'
@@ -239,11 +239,14 @@ def process_file_articles(file_list):
         data = pd.read_csv(csv_file)
     else:
         data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
+    titles = []
     for file in file_list:
         res_dict = process_html_file(file)
+        titles.append(res_dict['title'])
         if (data['title'] == res_dict['title']).sum() == 0:
             data = data.append(res_dict, ignore_index=True)
     data.to_csv(csv_file, index=False)
+    return titles
 
 
 def process_online_articles(url_list):
@@ -258,11 +261,14 @@ def process_online_articles(url_list):
         data = pd.read_csv(csv_file)
     else:
         data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
+    titles = []
     for url in url_list:
         res_dict = process_url(url)
+        titles.append(res_dict['title'])
         if (data['title'] == res_dict['title']).sum() == 0:
             data = data.append(res_dict, ignore_index=True)
     data.to_csv(csv_file, index=False)
+    return titles
 
 
 def process_text_files(file_list):
@@ -278,11 +284,14 @@ def process_text_files(file_list):
         data = pd.read_csv(csv_file)
     else:
         data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
+    titles = []
     for file in file_list:
         res_dict = process_text_file(file)
+        titles.append(res_dict['title'])
         if (data['title'] == res_dict['title']).sum() == 0:
             data = data.append(res_dict, ignore_index=True)
     data.to_csv(csv_file, index=False)
+    return titles
 
 
 def main():
@@ -293,5 +302,5 @@ def main():
     # process_text_files(['read_dossier.py'])
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()

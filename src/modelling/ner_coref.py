@@ -71,7 +71,8 @@ class NERCoref(object):
         
         print(indent + " loading BERT Tokenizer " + indent)
         sys.path.insert(1, proj_path + 'models/coref/')
-        from models.coref.bert import tokenization
+        # from models.coref.bert import tokenization
+        from bert import tokenization
         self.tokenizer = tokenization.FullTokenizer(
             vocab_file = proj_path + 'models/' + bert_model + '/vocab.txt',
             do_lower_case=False)

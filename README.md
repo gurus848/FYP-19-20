@@ -26,3 +26,9 @@ If the dependency library `flair` from `requirements.txt` fails to download, try
 ```
     pip install --upgrade git+https://github.com/flairNLP/flair.git
 ```
+
+In order to download the pretrained models for the `coref` model, run the following:
+```
+    cd models/coref/ | export data_dir=../ | ./download_pretrained.sh <model_name>
+```
+where model name can be one of: "bert_large", "spanbert_large", etc. For more, check `models/coref/README.md`

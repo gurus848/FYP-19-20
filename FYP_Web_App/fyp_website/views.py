@@ -1,12 +1,13 @@
 # for fyp_website app
 from django.http import HttpResponse, FileResponse
 from django.shortcuts import render
-from .forms import RelationSupportCSVDatasetForm, QueriesCSVDatasetForm, TextDatasetForm, NewsArticleURLForm, IndividualSentenceForm
+from .forms import RelationSupportCSVDatasetForm, QueriesCSVDatasetForm, TextDatasetForm, NewsArticleURLForm, IndividualSentenceForm, ExistingCSVForm
 import json
 from django.views.decorators.cache import never_cache
 import os
 import sys
-sys.path.insert(0, os.environ['FEWREL_PATH'])   #so that the relation extraction framework can be loaded.
+proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
+sys.path.insert(1, proj_path + 'FewRel')  #so that the relation extraction framework can be loaded.
 from fyp_detection_framework import DetectionFramework
 from threading import Thread
 from .models import ExtractedRelation, Source
@@ -14,7 +15,6 @@ import pandas as pd
 from django.contrib.auth.decorators import login_required
 from django.utils.html import mark_safe
 from markdown import markdown
-
 
 @never_cache
 @login_required
@@ -30,7 +30,8 @@ def home(request):
     data = []
     for i in results:
         data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6]})
-    ckpts = [f for f in os.listdir(os.environ['FEWREL_PATH'] + "/checkpoint") if '.pth.tar' in f]
+    proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
+    ckpts = [f for f in os.listdir(proj_path + "FewRel/checkpoint") if '.pth.tar' in f]
     return render(request, 'home.html', {'rel_sup_csv_form': rel_sup_csv_form, 'queries_csv_form': queries_csv_form, 'text_file_form': text_file_form, 'article_url_form': article_url_form, 'ind_sent_form':ind_sent_form, 'data': data, 'ckpts': ckpts, 'sup_relations':sup_relations, 'nk_stat':nk_stat})
 
 @never_cache
@@ -46,10 +47,10 @@ def sna_viz(request):
 @login_required
 def dataset_constructor(request):
     """
-        TODO
         Renders the relation support dataset constructor page
     """
-    return render(request, 'dataset_cntr.html')
+    form = ExistingCSVForm()
+    return render(request, 'dataset_cntr.html', {'form':form})
 
 @never_cache
 @login_required
@@ -58,7 +59,7 @@ def saved_results(request):
         Renders the saved_results page
     """
     timestamps = []
-    for i in Source.objects.all():
+    for i in Source.objects.filter(user=request.user):
         timestamps.append({'id':i.source_id, 'val':i.datetime_extracted.strftime('%d/%m/%Y %H:%M')})
     
     return render(request, 'saved_results.html', {'timestamps':timestamps})
@@ -67,7 +68,6 @@ def saved_results(request):
 @login_required
 def help_page(request):
     """
-        TODO
         Renders the help page
     """
     with open('static/markdown/help_page.md') as f:
@@ -168,8 +168,6 @@ def select_ind_sentence(request):
     """
     global results
     if request.method == "POST":
-        article_url = request.POST.get('article_url')
-        #TODO: save the sentence somehow
 
         return _start_analysis(request)
     else:
@@ -184,7 +182,7 @@ results = []  #list of the results which have been generated so far
 cancel_flag=[False]  #flag used to indicate whether the analysis should be cancelled or not
 errors = []  #list of the errors whcih have been generated
 error_i = 0  #index from which new errors can be sent
-d = None #
+d = DetectionFramework(ckpt_path=proj_path + "FewRel/checkpoint/pair-bert-combined_train-val_wiki-5-3-na3-3.pth.tar") #the detection framework
 def do_analysis(ckpt, queries_type, user):
     """
         Runs the actual analysis in a different thread
@@ -194,7 +192,8 @@ def do_analysis(ckpt, queries_type, user):
         print("starting analysis!")
         currently_analyzing = True
         results = []
-        ckpt = os.environ['FEWREL_PATH'] + "/checkpoint/" + ckpt
+        proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
+        ckpt = proj_path + "FewRel/checkpoint/" + ckpt
         if d is None or d.ckpt_path != ckpt:
             d = DetectionFramework(ckpt_path=ckpt)
             
@@ -207,16 +206,24 @@ def do_analysis(ckpt, queries_type, user):
             if not os.path.exists("temp/queries.csv"):
                 raise ValueError("Please upload query CSV dataset!")
             d.load_queries_csv("temp/queries.csv")
+            
         elif queries_type == "url_option":
             if not os.path.exists("temp/url.txt"):
                 raise ValueError("Please specify news article url!")
-            pass #TODO
+            with open("temp/url.txt") as f:
+                url = f.read()
+            d.load_url(url)
+            
         elif queries_type == "txt_option":
             if not os.path.exists("temp/queries.txt"):
                 raise ValueError("Please upload queries text file!")
-            pass #TODO
+                
+            d.load_file(os.path.abspath("temp/queries.txt"))
+            #TODO: apply coref, ner
+            
         elif queries_type == "ind_sentence_option":
-            pass #TODO
+            ind_sentence = request.POST.get('ind_sent')
+            d.load_ind_sentence(ind_sentence)
 
         d.detect(rt_results=results, cancel_flag=cancel_flag)
         src=None
@@ -230,10 +237,10 @@ def do_analysis(ckpt, queries_type, user):
             with open("temp/url.txt") as f:
                 src = f.read()
         
-        s = Source(source=src)
+        s = Source(source=src, user=user)
         s.save()
         for r in results:
-            er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],sentiment=r[5],conf=r[6],ckpt=ckpt, user=user, source=s)
+            er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],sentiment=r[5],conf=r[6],ckpt=ckpt, source=s)
             er.save()
         currently_analyzing = False
     except ValueError as e:
@@ -350,4 +357,23 @@ def dwn_saved_result_csv(request):
     
     return FileResponse(open('temp/analysis_results.csv','rb'))
     
-    
+def dataset_constructor_csv_file_upload(request):
+    """
+        converts the uploaded csv into a json which can then be sent to the client to update the table in the app.
+    """
+    if request.method == "POST":
+        relation_support_dataset = request.FILES['csv_file']
+        handle_uploaded_file(relation_support_dataset, 'temp/cntr_csv_file.csv')
+        df = pd.read_csv('temp/cntr_csv_file.csv')
+        ind = {}
+        data = []
+        for i, row in df.iterrows():
+            if row['reldescription'] not in ind:
+                data.append({'name':row['reldescription'], 'examples':[]})
+                ind[row['reldescription']] = len(data) - 1
+            data[ind[row['reldescription']]]['examples'].append({'head':row['head'], 'tail':row['tail'], 'sentence':row['sentence']})
+        return HttpResponse(
+            json.dumps({'num_rels':len(data), 'num_exs':len(data[0]['examples']), 'data':data}),
+            content_type="application/json"
+        )
+

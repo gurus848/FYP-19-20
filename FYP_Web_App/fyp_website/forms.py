@@ -14,3 +14,6 @@ class NewsArticleURLForm(forms.Form):
     
 class IndividualSentenceForm(forms.Form):
     sentence = forms.CharField()
+    
+class ExistingCSVForm(forms.Form):
+    existing_csv_file = forms.FileField()

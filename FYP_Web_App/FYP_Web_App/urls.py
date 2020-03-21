@@ -44,5 +44,6 @@ urlpatterns = [
     url(r'^ind_sent_query/$', views.select_ind_sentence, name='ind_sent_query'),
     url(r'^dwn_analysis_csv/$', views.dwn_analysis_csv, name='dwn_analysis_csv'),
     url(r'^saved_results/get/$', views.get_saved_result, name='get_saved_result'),
-    url(r'^saved_results/get_csv/$', views.dwn_saved_result_csv, name='dwn_saved_result')
+    url(r'^saved_results/get_csv/$', views.dwn_saved_result_csv, name='dwn_saved_result'),
+    url(r'^dataset_cntr/csv_file_upload/$', views.dataset_constructor_csv_file_upload, name='dataset_constructor_csv_file_upload')
 ]
