@@ -14,6 +14,8 @@ import tensorflow as tf
 import string
 import spacy
 from itertools import combinations
+from functools import reduce
+from operator import concat
 from flair.data import Sentence
 from flair.models import SequenceTagger
 from collections import deque
@@ -62,7 +64,11 @@ class NERCoref(object):
         Resolution model.
         
         Attributes:
-        
+            tokenizer: BERT tokenizer provided by models/coref.
+            ner_tagger: NER tagger from flair package. 
+            dep_parser: dependency parser from Spacy package.
+            model: tensorflow model impelementation from models/coref.
+            session: tensorflow session. 
     """
     def __init__(self, bert_model="bert_large", num_gpus=0):
         # BERT Tokenizer
@@ -202,7 +208,20 @@ class NERCoref(object):
     
     def predict(self, example):
         """
+            Predicts coreference clusters using
+            state-of-the-art Coreference Resolution 
+            models/coref. 
             
+            Args:
+                example (jsonline): a input format 
+                    defined as per the coreference
+                    resolution framework. 
+            
+            Returns:
+                example (jsonline): updates the input
+                    with additional fields for the
+                    predicted clusters in
+                    example["predicted_clusters"].
         """
         tensorized_example = self.model.tensorize_example(example, is_training=False)
         feed_dict = {i:t for i,t in zip(self.model.input_tensors, tensorized_example)}
@@ -219,6 +238,132 @@ class NERCoref(object):
         return example
 
 
+    def sent_resolve(self, text, overlap=1, markers=False):
+        """
+            Performs Coreference Resolution for a given text.
+            The text is partitioned into sentences in 
+            waterfall style. For each sentence to be resolved, 
+            overlap number of resolved sentences will be 
+            concatenated for context.
+ 
+            the maximum number of allowed bert tokens 
+            for Coreference resolution at once is 512. 
+
+            Args:
+                text (str): The document to be resolved.
+                
+                overlap (int): number of sentences to use
+                    for each resolve for context.
+                    Recommended range: 1, 2, 3. 
+                    Note: If set too high, will face 
+                    AssertionError
+            for maximum BERT tokens allowed.
+                
+                markers (bool): if set, the resolved spans
+                    in text will be quoted using '*'.
+                    For debugging purposes only. 
+
+            Returns:
+                resolved (str): The input text with all references
+                    replaced with first mentions. 
+           
+            Notes:
+                Assumed that the sentences are separated by'\n'.
+        """
+        sentences = text.split('\n')
+        # list of resolved sentences as list of sentences tokenized
+        resolved = list()
+        # store for inter paragraph first mention of entities
+        global_mentions = LazyStringSet() 
+        
+        for idx, sent in enumerate(sentences):
+            # paragraph as BERT Tokens
+            sent_tokens = self.tokenizer.tokenize(sent)
+            para_tokens = reduce(concat, resolved[-overlap:] + [sent_tokens])
+            print(" ".join(para_tokens).encode('utf-8'))
+            # Coreference Prediction
+            jsonline = self.create_jsonline(para_tokens)
+            example = self.predict(jsonline)
+            
+            # Resolution
+            # store all coreferences
+            corefs = dict()
+            for cluster in example["predicted_clusters"]:
+                i, j = cluster[0] # indices of first mention
+                first_mention = example['sentences'][0][i:j+1]
+                fm_str = self.bert_detokenize(first_mention)
+                
+                # remove possession modifier
+                if "'" in first_mention:
+                    if "s" in first_mention:
+                        first_mention.remove("'")
+                        first_mention.remove("s")
+
+                    if "S" in first_mention:
+                        first_mention.remove("'")
+                        first_mention.remove("S")
+                
+                # check for global coreference: inter paragraph. 
+                # (Inefficent from detokenizer calls)
+                gm = global_mentions.get(fm_str)
+                if gm:
+                    first_mention = self.tokenizer.tokenize(gm)
+                else:
+                    global_mentions.put(fm_str)
+                
+                # TODO: try to reduce longer first mentions to two words
+#                 first_mention = self.bert_detokenize(first_mention)
+#                 first_mention = first_mention.translate(string.punctuation)
+#                 ent_reduced = self.reduce_entity(first_mention)
+#                 first_mention = self.tokenizer.tokenize(ent_reduced)
+
+                # store other mentions indices for the new sentence by first mention
+                for (i, j) in cluster:
+                    if example["sentence_map"][i] == overlap:
+                        corefs[(i, j)] = first_mention
+
+            # replace all mentions with their first mentions
+            sent_resolved = list()
+            
+            # start with tokens of only the las sentence
+            x = example["sentence_map"].index(overlap)
+            prev_i, prev_j = x, x
+            
+            for (i, j), fm in sorted(corefs.items()):
+                if markers:
+                    fm = ['*'] + fm + ['*']
+                    
+                # check intersection: resolution within resolution
+                if i > prev_i and i < prev_j and j > prev_i and j < prev_j:
+                    # get last resolve
+                    delta = prev_j - prev_i + 1
+                    last_resolve = sent_resolved[-delta:]
+                    sent_resolved[-delta:] = last_resolve[0:i-prev_i-1] \
+                                             + fm \
+                                             + last_resolve[j-prev_i+1:]
+                else:
+                    sent_resolved.extend(para_tokens[prev_j: i-1])
+                    sent_resolved.extend(fm)
+                
+                prev_i, prev_j = i, j
+            
+            # add the remaining tokens to resolved
+            sent_resolved.extend(para_tokens[prev_j:])
+            
+            # add sentences tokens to resolved
+            resolved.append(sent_resolved)
+            
+            # for debugging
+            print("------------------------------------------")
+            print(sent.encode('utf-8'))
+            print(self.bert_detokenize(sent_resolved).encode('utf-8'))
+            print("------------------------------------------")
+        
+        # return the resolved text
+        resolved = reduce(concat, resolved)
+        return self.bert_detokenize(resolved)
+    
+    
     def para_resolve(self, text, markers=False):
         """
             Performs Coreference Resolution for a given text.
@@ -228,6 +373,10 @@ class NERCoref(object):
 
             Args:
                 text (str): The document to be resolved.
+                
+                markers (bool): if set, the resolved spans
+                    in text will be quoted using '*'.
+                    For debugging purposes only. 
 
             Returns:
                 resolved (str): The input text with all references
@@ -292,7 +441,7 @@ class NERCoref(object):
             
             for (i, j), fm in sorted(corefs.items()):
                 if markers:
-                    fm = ['$'] + fm + ['$']
+                    fm = ['*'] + fm + ['*']
                     
                 # check intersection: resolution within resolution
                 if i > prev_i and i < prev_j and j > prev_i and j < prev_j:
@@ -308,9 +457,18 @@ class NERCoref(object):
                 
                 prev_i, prev_j = i, j
             
+            # add the remaining tokens to resolved
+            para_resolved.extend(para_tokens[prev_j:])
+            
             # add paragraph to resolved
             para_resolved = self.bert_detokenize(para_resolved)
             resolved.append(para_resolved)
+            
+            # for debugging
+            print("------------------------------------------")
+            print(para.encode('utf-8'))
+            print(para_resolved.encode('utf-8'))
+            print("------------------------------------------")
         
         # return the resolved text
         return "\n".join(resolved)
@@ -432,3 +590,12 @@ class NERCoref(object):
                 queries['head'].extend(tails)
                 queries['tail'].extend(heads)
         return queries
+
+
+if __name__ == "__main__":
+    import codecs
+    with codecs.open("../../../temp.txt", encoding='utf-8') as f:
+        text = f.read()
+    
+    resolver = NERCoref()
+    resolved = resolver.sent_resolve(text, markers=True)
