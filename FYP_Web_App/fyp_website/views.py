@@ -183,7 +183,7 @@ cancel_flag=[False]  #flag used to indicate whether the analysis should be cance
 errors = []  #list of the errors whcih have been generated
 error_i = 0  #index from which new errors can be sent
 d = DetectionFramework(ckpt_path=proj_path + "FewRel/checkpoint/pair-bert-combined_train-val_wiki-5-3-na3-3.pth.tar") #the detection framework
-def do_analysis(ckpt, queries_type, user):
+def do_analysis(ckpt, queries_type, request):
     """
         Runs the actual analysis in a different thread
     """
@@ -201,7 +201,7 @@ def do_analysis(ckpt, queries_type, user):
         if not os.path.exists("temp/relation_support_dataset.csv"):
             raise ValueError("Please upload relation support dataset!")
             
-        d.load_support("temp/relation_support_dataset.csv", K=5)
+        d.load_support("temp/relation_support_dataset.csv")
         if queries_type == "csv_option":
             if not os.path.exists("temp/queries.csv"):
                 raise ValueError("Please upload query CSV dataset!")
@@ -218,8 +218,7 @@ def do_analysis(ckpt, queries_type, user):
             if not os.path.exists("temp/queries.txt"):
                 raise ValueError("Please upload queries text file!")
                 
-            d.load_file(os.path.abspath("temp/queries.txt"))
-            #TODO: apply coref, ner
+            d.load_text_file(os.path.abspath("temp/queries.txt"))
             
         elif queries_type == "ind_sentence_option":
             ind_sentence = request.POST.get('ind_sent')
@@ -237,7 +236,7 @@ def do_analysis(ckpt, queries_type, user):
             with open("temp/url.txt") as f:
                 src = f.read()
         
-        s = Source(source=src, user=user)
+        s = Source(source=src, user=request.user)
         s.save()
         for r in results:
             er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],sentiment=r[5],conf=r[6],ckpt=ckpt, source=s)
@@ -256,7 +255,7 @@ def _start_analysis(request):
 
     if not currently_analyzing:
         cancel_flag[0] = False
-        t = Thread(target=do_analysis, args=(request.POST.get('ckpt'),request.POST.get('queries_type'),request.user,))
+        t = Thread(target=do_analysis, args=(request.POST.get('ckpt'),request.POST.get('queries_type'),request))
         t.start()
         return HttpResponse(
                 json.dumps({"success": "analysis started"}),

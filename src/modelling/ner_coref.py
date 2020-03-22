@@ -524,7 +524,9 @@ class NERCoref(object):
                     by sentence id. 
         """
         ents = dict()
-        for idx, s in enumerate(text.split(". ")):
+        t = TextBlob(text)
+        sentences = [str(s) for s in t.sentences]
+        for idx, s in enumerate(sentences):
             # improves NER prediction
             sent = [" "+t if t in string.punctuation else t for t in s]
             sent = "".join(sent)

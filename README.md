@@ -32,3 +32,5 @@ In order to download the pretrained models for the `coref` model, run the follow
     cd models/coref/ | export data_dir=../ | ./download_pretrained.sh <model_name>
 ```
 where model name can be one of: "bert_large", "spanbert_large", etc. For more, check `models/coref/README.md`
+
+The first time you run the project you will need to download the nltk 'punkt' dataset.
