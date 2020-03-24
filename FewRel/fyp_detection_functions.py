@@ -111,16 +111,16 @@ class Detector:
         """
         return list(map(str, self.nlp_no_coref(sentence)))
 
-    def get_head_tail_pairs(self,sentence):
-        """
-            Gets pairs of heads and tails of named entities so that relation identification can be done on these.
-        """
-        acceptable_entity_types = ['PERSON', 'NORP', 'ORG', 'GPE', 'PRODUCT', 'EVENT', 'LAW', 'LOC', 'FAC']
-        doc = self.nlp_coref(sentence)
-        entity_info = [(X.text, X.label_) for X in doc.ents]
-        entity_info = set(map(lambda x:x[0], filter(lambda x:x[1] in acceptable_entity_types, entity_info)))
+#     def get_head_tail_pairs(self,sentence):
+#         """
+#             Gets pairs of heads and tails of named entities so that relation identification can be done on these.
+#         """
+#         acceptable_entity_types = ['PERSON', 'NORP', 'ORG', 'GPE', 'PRODUCT', 'EVENT', 'LAW', 'LOC', 'FAC']
+#         doc = self.nlp_coref(sentence)
+#         entity_info = [(X.text, X.label_) for X in doc.ents]
+#         entity_info = set(map(lambda x:x[0], filter(lambda x:x[1] in acceptable_entity_types, entity_info)))
 
-        return combinations(entity_info, 2)
+#         return combinations(entity_info, 2)
     
     def run_detection_algorithm(self, query, relation_data):
         """
@@ -148,7 +148,10 @@ class Detector:
                 tail_indices = list(range(i,i+len(tokenized_tail)))
                 break
         if head_indices is None or tail_indices is None:
-            raise ValueError
+            print(tokenized_head)
+            print(tokenized_tail)
+            print(tokens)
+            raise ValueError("Head/Tail indices error: head: {} \n tail: {} \n sentence: {}".format(head, tail, query['sentence']))
         
         bert_query_tokens = self.bert_tokenize(tokens, head_indices, tail_indices)
         for relation in relation_data:
@@ -169,7 +172,7 @@ class Detector:
                         tail_indices = list(range(i,i+len(tokenized_tail)))
                         break
                 if head_indices is None or tail_indices is None:
-                    raise ValueError
+                    raise ValueError("Head/Tail indices error: head: {} \n tail: {} \n sentence: {}".format(ex['head'], ex['tail'], ex['sentence']))
                 
                 bert_relation_example_tokens = self.bert_tokenize(tokens, head_indices, tail_indices)
 

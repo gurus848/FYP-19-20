@@ -9,6 +9,7 @@ from nlp_code import read_news_article
 proj_path = os.path.abspath(os.path.dirname(__file__)).split("FewRel")[0]
 sys.path.insert(1, proj_path + 'src/modelling/')
 from ner_coref import NERCoref
+from unidecode import unidecode
 
 class DataLoader:
     """
@@ -27,7 +28,14 @@ class DataLoader:
         def spacy_tokenize(sentence):
             doc = nlp(sentence)
             return list(map(str, doc))
-
+        
+        if 'reldescription' in df.columns:  #because the function is also used to check that a queries dataset with head/tail is correct
+            rels = df['reldescription'].unique().tolist()
+            count = df[df['reldescription'] == rels[0]].shape[0]
+            for r in rels[1:]:
+                if count != df[df['reldescription'] == r].shape[0]:
+                    raise ValueError("Error the number of examples used for each relation must be the same!")
+        
         for _, row in df.iterrows():
             head = row['head']
             tail = row['tail']
@@ -105,7 +113,7 @@ class DataLoader:
         queries = []
         df = pd.read_csv(filepath, engine='python')
         for _, row in df.iterrows():
-            queries.append({'sentence':row['sentence']})
+            queries.append({'sentence':unidecode(row['sentence'])})
         
         return queries
     
@@ -123,7 +131,7 @@ class DataLoader:
             raise ValueError("In the provided query dataset at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly. \n {}".format(str(e)))
         
         for _, row in df.iterrows():
-            queries.append({'sentence':row['sentence'], 'head':row['head'], 'tail':row['tail']})
+            queries.append({'sentence':unidecode(row['sentence']), 'head':unidecode(row['head']), 'tail':unidecode(row['tail'])})
         
         return queries
     
@@ -138,32 +146,12 @@ class DetectionFramework:
         Initializer
         """
         
-        self.support = []   #stores the list of relation support examples which have been loaded
+        self.support = []   #stores the list of relation support examples which have been loaded. multiple datasets can be used, each dataset is a separate list.
         self.detector = Detector(chpt_path=ckpt_path)   #the detector/model
         self.queries = []
         self.ckpt_path = ckpt_path
         self.ner_coref = None
     
-    def _add_support(self, support):
-        """
-            Adds relation support examples which have been loaded to this detection framework. Augments the existing data if necessary. 
-        """
-        if len(self.support) == 0:
-            self.support = support
-            return
-        
-        to_add = []
-        for support_i in support:
-            found = False
-            for support_j in self.support:
-                if support_i['name'] == support_j['name']:
-                    support_j['examples'].extend(support_i['examples'])
-                    found = True
-                    break
-                    
-            if not found:
-                to_add.append(support_i)
-        self.support.extend(to_add)
         
     def clear_support_queries(self):
         """
@@ -172,11 +160,13 @@ class DetectionFramework:
         self.support = []
         self.queries = []
     
-    def load_support(self, path):
+    def load_support_files(self, path):
         """
         Loads the relation support data which is mentioned.
         """
-        self._add_support(DataLoader.load_relation_support_csv(path))
+        self.support = []
+        for f in [i for i in os.listdir(path) if 'csv' in i]:
+            self.support.append(DataLoader.load_relation_support_csv("{}/{}".format(path, f)))
         
     def load_queries_csv(self, path):
         """
@@ -187,7 +177,12 @@ class DetectionFramework:
         if "head" in df.columns:
             self._load_queries_predefined_head_tail_csv(path)
         else:
-            self.queries = DataLoader.load_query_csv(path)
+            q = DataLoader.load_query_csv(path)
+            text = "\n".join([i['sentence'] for i in q])
+            results = self.ner_coref.generate_queries(text)
+            self.queries = []
+            for i in range(len(results['sentence'])):
+                self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
             
     def load_url(self, url):
         """
@@ -197,6 +192,7 @@ class DetectionFramework:
         proj_path = os.path.abspath(os.path.dirname(__file__)).split("fyp_detection_framework.py")[0]
         df = pd.read_csv("{}/nlp_code/data/extracted_article_data.csv".format(proj_path))
         text = df[df['title'] == title].iloc[0]['text']
+        text = unidecode(text)
         if self.ner_coref is None:
             self.ner_coref = NERCoref()
         results = self.ner_coref.generate_queries(text)
@@ -204,28 +200,48 @@ class DetectionFramework:
         for i in range(len(results['sentence'])):
             self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
         
-    def load_text_file(self, path):
+    def load_text_files(self, path):
         """
-            Loads from a file.
+            Loads queries from text files.
         """
-        text = open(path).read()
+        fs = [i for i in os.listdir(path) if 'txt' in i]
         if self.ner_coref is None:
             self.ner_coref = NERCoref()
-        results = self.ner_coref.generate_queries(text)
         self.queries = []
-        for i in range(len(results['sentence'])):
-            self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
+        for f in fs:
+            text = open("{}/{}".format(path, f)).read()
+            text = unidecode(text)
+            results = self.ner_coref.generate_queries(text)
+            for i in range(len(results['sentence'])):
+                self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
         
     def load_ind_sentence(self, text):
         """
-            Loads an individual sentence.
+            Loads an individual sentence as a query.
         """
         if self.ner_coref is None:
             self.ner_coref = NERCoref()
+        text = unidecode(text)
         results = self.ner_coref.generate_queries(text)
         self.queries = []
         for i in range(len(results['sentence'])):
             self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
+            
+    def load_html_file_queries(self, folder_path):
+        """
+            Loads multiple html files which have been uploaded for analysis.
+        """
+        if self.ner_coref is None:
+            self.ner_coref = NERCoref()
+        titles = read_news_article.process_file_articles([i for i in os.listdir(folder_path) if 'html' in i])
+        df = pd.read_csv("{}/nlp_code/data/extracted_article_data.csv".format(proj_path))
+        self.queries = []
+        for t in titles:
+            text = df[df['title'] == title].iloc[0]['text']
+            text = unidecode(text)
+            results = self.ner_coref.generate_queries(text)
+            for i in range(len(results['sentence'])):
+                self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
         
     def _load_queries_predefined_head_tail_csv(self, path):
         """
@@ -257,50 +273,19 @@ class DetectionFramework:
             
         results = []
         
-        for q in self.queries:
-            if cancel_flag[0]:
-                break
-            
-            # for some reason the python combinations function returns the head the tail consistently backwards
-            sentence = q['sentence']
-            if 'head' not in q:
-                #head and tail are not predefined, so NER is used to find the potential heads and tails
-                for tail, head in self.detector.get_head_tail_pairs(q['sentence']):    #iterating through all possible head and tail pairs
-                    q['head'] = head
-                    q['tail'] = tail
-                    result = self.detector.run_detection_algorithm(q, self.support)
-                    self.detector.print_result(*(result[:-1]))
+        for sup in self.support:   #iterate through the support datasets
+            for q in self.queries:  #iterate through the possible queries
+                if cancel_flag[0]:   #if the user has said that it should be cancelled, then cancel it
+                    break
 
-                        
-                    #TODO: fix sentiment analyses
-                    result.append('TODO')
-                    order = list(r['name'] for r in self.support)
-                    result.append(int(self._calculate_conf(result[-2], order, result[3])))
-                    results.append(result)
-
-                    tail, head = head, tail   #for testing
-
-                    q['head'] = head
-                    q['tail'] = tail
-                    result = self.detector.run_detection_algorithm(q, self.support)
-                    self.detector.print_result(*(result[:-1]))
-                        
-                    #TODO: fix sentiment analyses
-                    result.append('TODO')
-                    order = list(r['name'] for r in self.support)
-                    result.append(int(self._calculate_conf(result[-2], order, result[3])))
-                    results.append(result)
-                    if rt_results is not None:
-                        rt_results.append(result)
-            else:
                 #the head and tail are predefined in the query, so just those are used.
-                
-                result = self.detector.run_detection_algorithm(q, self.support)
+
+                result = self.detector.run_detection_algorithm(q, sup)
                 self.detector.print_result(*(result[:-1]))
-                   
+
                 #TODO: fix sentiment analyses
                 result.append('TODO')
-                order = list(r['name'] for r in self.support)
+                order = list(r['name'] for r in sup)
                 result.append(int(self._calculate_conf(result[-2], order, result[3])))
                 results.append(result)
                 if rt_results is not None:
