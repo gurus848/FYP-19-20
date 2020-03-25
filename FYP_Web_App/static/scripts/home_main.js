@@ -242,7 +242,7 @@ function check_analysis_results() {
                 alert('Error! Please see errors during analysis table');
                 var d = new Date();
                 for(var i = 0; i < json.errors.length; i++){
-                    $('#errors_div').append("<p>"+d+": "+json.errors[i]+"</p>");
+                    $('#errors_div').prepend("<p>"+d+": "+json.errors[i]+"</p>");
                 }
                 $('.analysis_status_spinner').hide();
                 return;
@@ -251,7 +251,7 @@ function check_analysis_results() {
             //process new data retrieved
             var new_data = json.new_data;
             for(var i = 0; i < new_data.length; i++){
-                $('#result_table').append('<tr><td>'+new_data[i].sentence+'</td> <td class="align-middle">'+new_data[i].head+'</td><td class="align-middle">'+new_data[i].tail+'</td><td>'+new_data[i].pred_relation+'</td><td>'+new_data[i].pred_sentiment+'</td><td>'+new_data[i].conf.toString()+"%"+'</td></tr>');
+                $('#result_table').append('<tr><td>'+new_data[i].sentence+'</td> <td class="align-middle">'+new_data[i].head+'</td><td class="align-middle">'+new_data[i].tail+'</td><td>'+new_data[i].pred_relation+'</td><td>'+new_data[i].pred_sentiment+'</td><td>'+new_data[i].conf.toString()+"%"+'</td><td>'+new_data[i].dataset+'</td></tr>');
             }
             cur_index_reached += new_data.length;
         },

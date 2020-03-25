@@ -582,7 +582,7 @@ class NERCoref(object):
                     columns = ['sentence', 'head', 'tail'].
         """
         # resolve
-        resolved = self.sent_resolve(text)
+        resolved = self.para_resolve(text)
 
         # get entities
         ents = self.get_entities(resolved, disable_types=disable_types)

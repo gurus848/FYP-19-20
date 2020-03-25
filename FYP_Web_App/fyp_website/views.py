@@ -11,10 +11,12 @@ sys.path.insert(1, proj_path + 'FewRel')  #so that the relation extraction frame
 from fyp_detection_framework import DetectionFramework
 from threading import Thread
 from .models import ExtractedRelation, Source
+from .viz import VizualizationManager
 import pandas as pd
 from django.contrib.auth.decorators import login_required
 from django.utils.html import mark_safe
 from markdown import markdown
+import traceback
 
 @never_cache
 @login_required
@@ -31,7 +33,7 @@ def home(request):
     html_files_form = HTMLFilesForm()
     data = []
     for i in results:
-        data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6]})
+        data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6], 'dataset':i[7]})
     proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
     ckpts = [f for f in os.listdir(proj_path + "FewRel/checkpoint") if '.pth.tar' in f]
     rel_sup_datasets = []
@@ -46,6 +48,7 @@ def sna_viz(request):
         TODO
         Renders the SNA and vizualizations page
     """
+    VizualizationManager.make_node_link(request)
     return render(request, 'sna_viz.html')
 
 @never_cache
@@ -276,6 +279,8 @@ def do_analysis(ckpt, queries_type, request):
     except ValueError as e:
         print(len(str(e)))
         print(str(e))
+        tb = traceback.format_exc()
+        print(tb)
         errors.append(str(e))
     finally:
         currently_analyzing = False
@@ -322,7 +327,7 @@ def get_analysis_results(request):
         client_index_till = int(request.GET.get('cur_index_reached', 0))
         new_data = []
         for i in results[client_index_till:]:
-            new_data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6]})
+            new_data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6], 'dataset':i[7]})
         status = 'analysis_in_progress'
         if not currently_analyzing:
             status = 'finished_analysis'

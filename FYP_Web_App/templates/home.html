@@ -122,6 +122,7 @@
                         <th>Predicted Relation</th>
                         <th>Predicted Sentiment</th>
                         <th>Confidence</th>
+                        <th>Dataset</th>
                         </tr>
                     </thead>
                     <tbody id="result_table">
@@ -133,6 +134,7 @@
                                 <td>{{ i.pred_relation }}</td>
                                 <td>{{ i.pred_sentiment }}</td>
                                 <td>{{ i.conf|stringformat:"i"|add:"%" }}</td>
+                                <td>{{ i.dataset }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
