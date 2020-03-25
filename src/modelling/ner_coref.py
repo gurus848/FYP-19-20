@@ -115,7 +115,7 @@ class NERCoref(object):
         print("===========================")
         
     
-    def get_subtoken_map(self, tokens):
+    def _get_subtoken_map(self, tokens):
         """
             Provides a flat list of int for each bert token
             its corresponding word in the text.
@@ -135,7 +135,7 @@ class NERCoref(object):
         return [0] + subtoken_map + [i]
     
     
-    def get_sentence_map(self, tokens):
+    def _get_sentence_map(self, tokens):
         """
             Provides a flat list of int for each bert token
             its corresponding word in the text.
@@ -156,7 +156,7 @@ class NERCoref(object):
         return [0] + sentence_map + [i]
     
 
-    def create_jsonline(self, tokens):
+    def _create_jsonline(self, tokens):
         """
             Returns jsonline format which is inputtable
             to the Coreference Resolution model
@@ -175,12 +175,12 @@ class NERCoref(object):
         data['sentences'] = [['[CLS]'] + tokens + ['[SEP]']]
         # setting to No speaker for every subword at the moment
         data['speakers'] = [['[SPL]'] + list(map(lambda x: ""*len(x), tokens)) + ['[SPL]']]
-        data['sentence_map'] = self.get_sentence_map(tokens)
-        data['subtoken_map'] = self.get_subtoken_map(tokens)
+        data['sentence_map'] = self._get_sentence_map(tokens)
+        data['subtoken_map'] = self._get_subtoken_map(tokens)
         return data
 
     
-    def bert_detokenize(self, tokens):
+    def _bert_detokenize(self, tokens):
         """
             Converts a list of bert tokens to text.
 
@@ -191,13 +191,29 @@ class NERCoref(object):
                 text (str): the merged text from tokens. 
         """
         text = ""
-        for t in tokens:
+        skip = list()
+        for i, t in enumerate(tokens):
+            if i in skip:
+                continue
+            
+            # remove ## prefix for a bert subtoken
             if t.startswith("##"):
                 text += t[2:]
-
-            elif t in string.punctuation:
+            
+            # apply space before a dash
+            elif t == '-':
+                text += ' -'
+            
+            # avoid space between decimal points
+            elif t == '.' and tokens[i-1].isdigit() and tokens[i+1].isdigit():
+                text += t + tokens[i+1]
+                skip.append(i+1)
+            
+            # avoid trailing space for other types of punctuation
+            elif t in '!"#$%&\\\'()*+,./:;<=>?@[\\]^_`{|}~':
                 text += t
             
+            # avoid space after ' for sS possessive modifiers
             elif len(text) > 0 and text[-1] == "'" and t in "sS":
                 text += t
 
@@ -206,7 +222,7 @@ class NERCoref(object):
         return text
     
     
-    def predict(self, example):
+    def _predict(self, example):
         """
             Predicts coreference clusters using
             state-of-the-art Coreference Resolution 
@@ -282,8 +298,8 @@ class NERCoref(object):
             para_tokens = reduce(concat, resolved[-overlap:] + [sent_tokens])
             print(" ".join(para_tokens).encode('utf-8'))
             # Coreference Prediction
-            jsonline = self.create_jsonline(para_tokens)
-            example = self.predict(jsonline)
+            jsonline = self._create_jsonline(para_tokens)
+            example = self._predict(jsonline)
             
             # Resolution
             # store all coreferences
@@ -291,7 +307,7 @@ class NERCoref(object):
             for cluster in example["predicted_clusters"]:
                 i, j = cluster[0] # indices of first mention
                 first_mention = example['sentences'][0][i:j+1]
-                fm_str = self.bert_detokenize(first_mention)
+                fm_str = self._bert_detokenize(first_mention)
                 
                 # remove possession modifier
                 if "'" in first_mention:
@@ -325,7 +341,7 @@ class NERCoref(object):
             # replace all mentions with their first mentions
             sent_resolved = list()
             
-            # start with tokens of only the las sentence
+            # start with tokens of only the last sentence
             x = example["sentence_map"].index(overlap)
             prev_i, prev_j = x, x
             
@@ -356,12 +372,12 @@ class NERCoref(object):
             # for debugging
             print("------------------------------------------")
             print(sent.encode('utf-8'))
-            print(self.bert_detokenize(sent_resolved).encode('utf-8'))
+            print(self._bert_detokenize(sent_resolved).encode('utf-8'))
             print("------------------------------------------")
         
         # return the resolved text
         resolved = reduce(concat, resolved)
-        return self.bert_detokenize(resolved)
+        return self._bert_detokenize(resolved)
     
     
     def para_resolve(self, text, markers=False):
@@ -396,8 +412,8 @@ class NERCoref(object):
             para_tokens = self.tokenizer.tokenize(para)
             
             # Coreference Prediction
-            jsonline = self.create_jsonline(para_tokens)
-            example = self.predict(jsonline)
+            jsonline = self._create_jsonline(para_tokens)
+            example = self._predict(jsonline)
             
             # Resolution
             # store all coreferences
@@ -405,7 +421,7 @@ class NERCoref(object):
             for cluster in example["predicted_clusters"]:
                 i, j = cluster[0] # indices of first mention
                 first_mention = example['sentences'][0][i:j+1]
-                fm_str = self.bert_detokenize(first_mention)
+                fm_str = self._bert_detokenize(first_mention)
                 
                 # remove possession modifier
                 if "'" in first_mention:
@@ -461,7 +477,7 @@ class NERCoref(object):
             para_resolved.extend(para_tokens[prev_j:])
             
             # add paragraph to resolved
-            para_resolved = self.bert_detokenize(para_resolved)
+            para_resolved = self._bert_detokenize(para_resolved)
             resolved.append(para_resolved)
             
             # for debugging
@@ -508,7 +524,7 @@ class NERCoref(object):
         return ent_reduced
                     
 
-    def get_entities(self, text, disable_types=None):
+    def get_entities(self, text, disable_types=None, ent_span=False):
         """
             Get entities for a given text. 
 
@@ -530,12 +546,13 @@ class NERCoref(object):
             sent = "".join(sent)
             sent = Sentence(sent)
             self.ner_tagger.predict(sent)
-            # note only PER and ORG entity types are included
-            if disable_types:
-                ents[idx] = [ent.text for ent in sent.get_spans('ner') 
-                             if ent.tag not in disable_types]
-            else:
-                ents[idx] = [ent.text for ent in sent.get_spans('ner')]
+
+            ents[idx] = list()
+            for ent in sent.get_spans('ner'):
+                if disable_types and ent.tag in disable_types:
+                    continue
+                else:
+                    ents[idx].append(ent.text)
         return ents
 
     
@@ -563,7 +580,7 @@ class NERCoref(object):
                     columns = ['sentence', 'head', 'tail'].
         """
         # resolve
-        resolved = self.para_resolve(text)
+        resolved = self.sent_resolve(text)
 
         # get entities
         ents = self.get_entities(resolved, disable_types=disable_types)
