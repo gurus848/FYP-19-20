@@ -5,8 +5,8 @@ import os
 from enum import Enum
 import urllib.request, urllib.error, urllib.parse
 
-
-project_data_folder_path = "../../../data"
+proj_path = os.path.abspath(os.path.dirname(__file__)).split("read_news_article.py")[0]
+project_data_folder_path = "{}/data".format(proj_path)
 
 
 class ArticleType(Enum):
@@ -74,10 +74,10 @@ def process_url(url):
     response = urllib.request.urlopen(url)
     webContent = response.read()
 
-    f = open('temp.html', 'wb')
+    f = open(proj_path + '/data/temp.html', 'wb')
     f.write(webContent)
     f.close()
-    return process_html_file('temp.html')
+    return process_html_file(proj_path + '/data/temp.html')
 
 
 def determine_publisher(htmltext):
@@ -234,8 +234,7 @@ def process_file_articles(file_list):
     :return:
     """
     csv_file = os.path.join(project_data_folder_path, "extracted_article_data.csv")
-    open(csv_file, 'a').close()  # to create the file if it doesn't exist
-    if os.path.getsize(csv_file) > 0:
+    if os.path.exists(csv_file):
         data = pd.read_csv(csv_file)
     else:
         data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
@@ -256,8 +255,7 @@ def process_online_articles(url_list):
         :return:
     """
     csv_file = os.path.join(project_data_folder_path, "extracted_article_data.csv")
-    open(csv_file, 'a').close()  # to create the file if it doesn't exist
-    if os.path.getsize(csv_file) > 0:
+    if os.path.exists(csv_file):
         data = pd.read_csv(csv_file)
     else:
         data = pd.DataFrame(columns=['title', 'authors', 'text', 'date', 'publisher'])
@@ -304,3 +302,4 @@ def main():
 
 # if __name__ == '__main__':
 #     main()
+

@@ -102,8 +102,8 @@ function set_num_rels_exs(num_rels, num_exs){
         for(var i = table_div.length+1; i <= num_rels; i++){
             var new_rel = `<div class="mt-3 relation_container card">
             <div class="card-header">
-                <label>Relation ` + i + ` Name: </label>
-                <input type="text" class="relation_name"/>
+                <label for="rel_name">Relation ` + i + ` Name: </label>
+                <input type="text"  class="relation_name form-control"/>
             </div>
             <div class="example_container card-body">
 
@@ -120,13 +120,17 @@ function set_num_rels_exs(num_rels, num_exs){
     $('.example_container').each(function() {
         for(var i = $(this).children().length + 1; i <= num_exs; i++){
             var new_ex = `<div class="example">
-            <p style="display:inline"> `+ i +`. </p>
+            <p style="display:inline"> Example `+ i +` </p>
             <label> Sentence: </label>
-            <input type="text" class="sentence" />
+            <input type="text" class="sentence form-control" />
             <label> Head: </label>
-            <input type="text" class="head" />
+            <div class="col-3">
+            <input type="text" class="head form-control" />
+            </div>
             <label> Tail: </label>
-            <input type="text" class="tail" />
+            <div class="col-3">
+            <input type="text" class="tail form-control" />
+            </div>
             </div>`
             $(this).append(new_ex);
         }

@@ -35,6 +35,7 @@ $(document).ready(function() {
        $("#text_file_form").hide();
        $('#news_article_form').hide();
        $('#ind_sent_form').hide(); 
+    $('#html_files_form').hide();
     $('.analysis_status_spinner').hide();
     $("#home_nav").addClass("active");
 });
@@ -78,9 +79,12 @@ $('#rel_sup_csv_form').on('submit', function(event){
         // handle a successful response
         success : function(json) {
             console.log(json); // log the returned json to the console
-            $('#sup_relations_p').text('Currently Supported Relations: '+json.sup_relations);
+            $('#rel_sup_dataset_info').empty();
+            for(var i = 1; i <= json.rel_sup_datasets.length; i++){
+                $('#rel_sup_dataset_info').append('Dataset '+i.toString()+' - Supported Relations: '+json.rel_sup_datasets[i-1].sup_relations+',   '+json.rel_sup_datasets[i-1].nk_stat+'</br>');
+                $('#rel_sup_dataset_info').append('<button value="'+i.toString()+'" class="rel_sup_deletor btn btn-danger">Delete</button></br>')
+            }
             alert('Uploaded relation support CSV successfully!');
-            $('#nk_stat').text("Currently "+json.nk_stat);
         },
 
         // handle a non-successful response
@@ -129,14 +133,21 @@ $('#query_csv_form').on('submit', function(event){
 $('#text_file_form').on('submit', function(event){
     event.preventDefault();
     var formData = new FormData();
-    var text_file_name = $('#id_text_file_dataset')[0].files[0].name
-    //validating that only csv files can be uploaded
-    if (text_file_name.slice(-3) != 'txt'){
-        alert('Please upload txt files only!');
-        return;
+    
+    var files = $('#id_text_file_dataset')[0].files
+    for(var j = 0; j < files.length; j++){
+        //validating that only txt files can be uploaded
+        var text_file_name = files[j].name
+        if (text_file_name.slice(-3) != 'txt'){
+            alert('Please upload txt files only!');
+            return;
+        }
     }
     
-    formData.append('text_file', $('#id_text_file_dataset')[0].files[0]);
+    for(var j = 0; j < files.length; j++){
+        formData.append('text_file', files[j]);
+    }
+    
     formData.append('ckpt', $('#ckpt_selector').val());
     formData.append('queries_type', $("#query_datset_type_selection label.active input").val())
     $.ajax({
@@ -271,6 +282,7 @@ $('#cancel_analysis_button').click(function() {
                 alert('Cancelled analysis successfully!');
                 $('#analysis_status_indicator').text('Analysis Status: Cancelled');
                 do_check_request = false;
+                $('.analysis_status_spinner').hide();
             }else{
                 alert('Error!');
             } 
@@ -283,28 +295,38 @@ $('#cancel_analysis_button').click(function() {
     });
 });
 
-//update the analysis form view dynamically when the radio buttons are clicked.
+//update the analysis form view dynamically when the radio buttons for the type of query are clicked.
 $("input:radio").change(function () {
    if ($(this).val() == "csv_option"){
        $('#query_csv_form').show();
        $("#text_file_form").hide();
        $('#news_article_form').hide();
        $('#ind_sent_form').hide();
+       $('#html_files_form').hide();
    }else if($(this).val() == "txt_option"){
        $('#query_csv_form').hide();
        $("#text_file_form").show();
        $('#news_article_form').hide();
        $('#ind_sent_form').hide();
+       $('#html_files_form').hide();
    }else if($(this).val() == "url_option"){
        $('#query_csv_form').hide();
        $("#text_file_form").hide();
        $('#news_article_form').show();
        $('#ind_sent_form').hide();
+       $('#html_files_form').hide();
    }else if($(this).val() == "ind_sentence_option"){
         $('#query_csv_form').hide();
         $("#text_file_form").hide();
         $('#news_article_form').hide();
         $('#ind_sent_form').show();
+       $('#html_files_form').hide();
+   }else if($(this).val() == "html_option"){
+        $('#query_csv_form').hide();
+        $("#text_file_form").hide();
+        $('#news_article_form').hide();
+        $('#ind_sent_form').hide();
+       $('#html_files_form').show();
    }
 });
 
@@ -320,4 +342,52 @@ $('#download_results_csv').click(function() {
         alert("Error no results yet!");
     }
    
+});
+
+//called when the button is clicked to delete a relation support dataset
+$('#rel_sup_dataset_info').on('click', '.rel_sup_deletor', function(){
+    console.log($(this).val());
+    var link = document.createElement('a');
+    link.href = "/del_rel_sup_csv?i="+$(this).val();
+    link.click();
+});
+
+//Called with the html files form is submitted
+$('#html_files_form').on('submit', function(){
+    event.preventDefault();
+    var formData = new FormData();
+    var files = $('#id_html_files_dataset')[0].files
+    for(var j = 0; j < files.length; j++){
+        //validating that only html files can be uploaded
+        var text_file_name = files[j].name
+        if (text_file_name.slice(-4) != 'html'){
+            alert('Please upload html files only!');
+            return;
+        }
+    }
+    
+    for(var j = 0; j < files.length; j++){
+        formData.append('html_file', files[j]);
+    }
+    
+    formData.append('ckpt', $('#ckpt_selector').val());
+    formData.append('queries_type', $("#query_datset_type_selection label.active input").val())
+    $.ajax({
+        url : "html_files_upload/", // the endpoint
+        type : "POST", // http method
+        data : formData,
+        processData: false,
+        contentType: false,
+
+        // handle a successful response
+        success : function(json) {
+            console.log(json); // log the returned json to the console
+            analysis_start_success_check(json);
+        },
+
+        // handle a non-successful response
+        error : function(xhr,errmsg,err) {
+            console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+        }
+    });
 });

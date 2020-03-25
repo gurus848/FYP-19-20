@@ -25,7 +25,7 @@ SECRET_KEY = 'of64p3$=xnth)4^n!6gg*+-xtkf4h@v%wk#-ls26zf(lafeg_t'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition

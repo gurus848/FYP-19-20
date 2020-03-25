@@ -1,7 +1,7 @@
 # for fyp_website app
 from django.http import HttpResponse, FileResponse
-from django.shortcuts import render
-from .forms import RelationSupportCSVDatasetForm, QueriesCSVDatasetForm, TextDatasetForm, NewsArticleURLForm, IndividualSentenceForm, ExistingCSVForm
+from django.shortcuts import render, redirect
+from .forms import RelationSupportCSVDatasetForm, QueriesCSVDatasetForm, TextDatasetForm, NewsArticleURLForm, IndividualSentenceForm, ExistingCSVForm, HTMLFilesForm
 import json
 from django.views.decorators.cache import never_cache
 import os
@@ -22,17 +22,22 @@ def home(request):
     """
         Renders the home page of the app.
     """
+    _get_sup_relations()
     rel_sup_csv_form = RelationSupportCSVDatasetForm()
     queries_csv_form = QueriesCSVDatasetForm()
     text_file_form = TextDatasetForm()
     article_url_form = NewsArticleURLForm()
     ind_sent_form = IndividualSentenceForm()
+    html_files_form = HTMLFilesForm()
     data = []
     for i in results:
         data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6]})
     proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
     ckpts = [f for f in os.listdir(proj_path + "FewRel/checkpoint") if '.pth.tar' in f]
-    return render(request, 'home.html', {'rel_sup_csv_form': rel_sup_csv_form, 'queries_csv_form': queries_csv_form, 'text_file_form': text_file_form, 'article_url_form': article_url_form, 'ind_sent_form':ind_sent_form, 'data': data, 'ckpts': ckpts, 'sup_relations':sup_relations, 'nk_stat':nk_stat})
+    rel_sup_datasets = []
+    for i in range(len(nk_stat)):
+        rel_sup_datasets.append({'i':i+1, 'sup_relations': sup_relations[i], 'nk_stat': nk_stat[i]})
+    return render(request, 'home.html', {'rel_sup_csv_form': rel_sup_csv_form, 'queries_csv_form': queries_csv_form, 'text_file_form': text_file_form, 'article_url_form': article_url_form, 'ind_sent_form':ind_sent_form, 'data': data, 'ckpts': ckpts, 'rel_sup_datasets': rel_sup_datasets, 'html_files_form':html_files_form})
 
 @never_cache
 @login_required
@@ -76,22 +81,26 @@ def help_page(request):
     help_text = mark_safe(markdown(md_text, safe_mode='escape'))
     return render(request, 'help_page.html', {'help_text':help_text})
 
-sup_relations = ""
-nk_stat = ""
+sup_relations = []
+nk_stat = []
 def _get_sup_relations():
     global sup_relations, nk_stat
-    if os.path.exists("temp/relation_support_dataset.csv"):
-        df = pd.read_csv("temp/relation_support_dataset.csv", engine='python')
-        sup_relations = ", ".join(list(df['reldescription'].unique()))
+    rel_support_datasets = os.listdir("temp/relation_support_datasets")  #gets a list of the relation support datasets
+    rel_support_datasets = sorted([i for i in rel_support_datasets if '.csv' in i])
+    sup_relations = []
+    nk_stat = []
+    for f in rel_support_datasets:
+        df = pd.read_csv("temp/relation_support_datasets/"+f, engine='python')
+        sup_relations.append(", ".join(list(df['reldescription'].unique())))
         N = df['reldescription'].unique().shape[0]
         K = df[df['reldescription'] == df['reldescription'].loc[0]].shape[0]
         
-        nk_stat = "{}-way {}-shot".format(N, K)
+        nk_stat.append("{}-way {}-shot".format(N, K))
 _get_sup_relations()
 
 def handle_uploaded_file(f, fname):
     """
-        Takes the uploaded files and saves them appropriately to disk.
+        Helper function that takes the uploaded files and saves them appropriately to disk.
     """
     with open(fname, 'wb+') as destination:
         for chunk in f.chunks():
@@ -99,14 +108,17 @@ def handle_uploaded_file(f, fname):
 
 def rel_sup_csv_upload(request):
     """
-        Uploads the selected relation support dataset from the user, and starts the analysis.
+        Uploads the selected relation support dataset from the user.
     """
     if request.method == "POST":
         relation_support_dataset = request.FILES['relation_support_dataset']
-        handle_uploaded_file(relation_support_dataset, 'temp/relation_support_dataset.csv')
+        handle_uploaded_file(relation_support_dataset, 'temp/relation_support_datasets/relation_support_dataset_{}.csv'.format(len(nk_stat) + 1))
         _get_sup_relations()
+        rel_sup_datasets = []
+        for i in range(len(nk_stat)):
+            rel_sup_datasets.append({'i':i+1, 'sup_relations': sup_relations[i], 'nk_stat': nk_stat[i]})
         return HttpResponse(
-            json.dumps({'success':'success', 'sup_relations':sup_relations, 'nk_stat':nk_stat}),
+            json.dumps({'success':'success', 'rel_sup_datasets':rel_sup_datasets}),
             content_type="application/json"
         )
     else:
@@ -115,6 +127,18 @@ def rel_sup_csv_upload(request):
             content_type="application/json"
         )
 
+def del_rel_sup_csv(request):
+    """
+        Called when a particular relation support CSV is to be deleted.
+    """
+    if request.method == "GET":
+        dataset_index = int(request.GET.get("i"))
+        os.remove("temp/relation_support_datasets/relation_support_dataset_{}.csv".format(dataset_index))
+        if len(nk_stat) > dataset_index:
+            for i in range(dataset_index+1, len(nk_stat)+1):
+                os.rename("temp/relation_support_datasets/relation_support_dataset_{}.csv".format(i), "temp/relation_support_datasets/relation_support_dataset_{}.csv".format(i-1))
+    return redirect('home')
+    
 def query_csv_upload(request):
     """
         Uploads the selected queries CSV dataset from the user, and starts the analysis.
@@ -135,8 +159,13 @@ def text_file_upload(request):
         Uploads the text file dataset from the user, and starts the analysis.
     """
     if request.method == "POST":
-        queries_dataset = request.FILES['text_file']
-        handle_uploaded_file(queries_dataset, 'temp/queries.txt')
+        txt_files = request.FILES.getlist('text_file')
+        fs = [i for i in os.listdir('temp/text_files') if 'txt' in i]
+        #delete old files
+        for f in fs:
+            os.remove('temp/text_files/{}'.format(f))
+        for i, f in enumerate(txt_files):
+            handle_uploaded_file(f, 'temp/text_files/text_file_{}.txt'.format(i+1))
 
         return _start_analysis(request)
     else:
@@ -183,7 +212,7 @@ cancel_flag=[False]  #flag used to indicate whether the analysis should be cance
 errors = []  #list of the errors whcih have been generated
 error_i = 0  #index from which new errors can be sent
 d = DetectionFramework(ckpt_path=proj_path + "FewRel/checkpoint/pair-bert-combined_train-val_wiki-5-3-na3-3.pth.tar") #the detection framework
-def do_analysis(ckpt, queries_type, user):
+def do_analysis(ckpt, queries_type, request):
     """
         Runs the actual analysis in a different thread
     """
@@ -198,10 +227,10 @@ def do_analysis(ckpt, queries_type, user):
             d = DetectionFramework(ckpt_path=ckpt)
             
         d.clear_support_queries()
-        if not os.path.exists("temp/relation_support_dataset.csv"):
+        if  len([i for i in os.listdir("temp/relation_support_datasets") if 'csv' in i]) == 0:
             raise ValueError("Please upload relation support dataset!")
             
-        d.load_support("temp/relation_support_dataset.csv", K=5)
+        d.load_support_files("temp/relation_support_datasets")
         if queries_type == "csv_option":
             if not os.path.exists("temp/queries.csv"):
                 raise ValueError("Please upload query CSV dataset!")
@@ -215,15 +244,14 @@ def do_analysis(ckpt, queries_type, user):
             d.load_url(url)
             
         elif queries_type == "txt_option":
-            if not os.path.exists("temp/queries.txt"):
-                raise ValueError("Please upload queries text file!")
-                
-            d.load_file(os.path.abspath("temp/queries.txt"))
-            #TODO: apply coref, ner
+            d.load_text_files(os.path.abspath("temp/text_files"))
             
         elif queries_type == "ind_sentence_option":
             ind_sentence = request.POST.get('ind_sent')
             d.load_ind_sentence(ind_sentence)
+            
+        elif queries_type == "html_option":
+            d.load_html_file_queries(os.path.abspath("temp/html_files"))
 
         d.detect(rt_results=results, cancel_flag=cancel_flag)
         src=None
@@ -236,14 +264,18 @@ def do_analysis(ckpt, queries_type, user):
         elif queries_type == "url_option":
             with open("temp/url.txt") as f:
                 src = f.read()
+        elif queries_type == "html_option":
+            src = "html_files"
         
-        s = Source(source=src, user=user)
+        s = Source(source=src, user=request.user)
         s.save()
         for r in results:
             er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],sentiment=r[5],conf=r[6],ckpt=ckpt, source=s)
             er.save()
         currently_analyzing = False
     except ValueError as e:
+        print(len(str(e)))
+        print(str(e))
         errors.append(str(e))
     finally:
         currently_analyzing = False
@@ -256,7 +288,7 @@ def _start_analysis(request):
 
     if not currently_analyzing:
         cancel_flag[0] = False
-        t = Thread(target=do_analysis, args=(request.POST.get('ckpt'),request.POST.get('queries_type'),request.user,))
+        t = Thread(target=do_analysis, args=(request.POST.get('ckpt'),request.POST.get('queries_type'),request))
         t.start()
         return HttpResponse(
                 json.dumps({"success": "analysis started"}),
@@ -359,7 +391,7 @@ def dwn_saved_result_csv(request):
     
 def dataset_constructor_csv_file_upload(request):
     """
-        converts the uploaded csv into a json which can then be sent to the client to update the table in the app.
+        Converts the uploaded csv into a json which can then be sent to the client to update the table in the app.
     """
     if request.method == "POST":
         relation_support_dataset = request.FILES['csv_file']
@@ -377,3 +409,23 @@ def dataset_constructor_csv_file_upload(request):
             content_type="application/json"
         )
 
+def html_files_upload(request):
+    """
+        Called when html news files are uploaded to be analyzed
+    """
+    if request.method == "POST":
+        
+        html_files = request.FILES.getlist('html_file')
+        fs = [i for i in os.listdir('temp/html_files') if 'html' in i]
+        #delete old files
+        for f in fs:
+            os.remove('temp/html_files/{}'.format(f))
+        for i, f in enumerate(html_files):
+            handle_uploaded_file(f, 'temp/html_files/html_file_{}.html'.format(i+1))
+
+        return _start_analysis(request)
+    else:
+        return HttpResponse(
+            json.dumps({"error": "error, GET request not supported"}),
+            content_type="application/json"
+        )
