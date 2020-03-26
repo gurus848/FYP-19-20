@@ -9,15 +9,12 @@
 </ol>
 
 <h3>Node-Link Graph of all Entities and Relationships</h3>
+<button id="gen_node_link_graph" class="btn btn-primary">Generate Graph</button>
+</br>
 <div id="node_link_viz">
 </div>
 {% endblock %}
 
 {% block javascript %}
 <script src="{% static 'scripts/sna_viz_main.js' %}"></script>
-<script>
-    $(function(){
-      $("#node_link_viz").load("{% static 'node_link_viz.html' %}"); 
-    });
-</script>
 {% endblock %}

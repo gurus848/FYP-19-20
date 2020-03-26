@@ -48,7 +48,6 @@ def sna_viz(request):
         TODO
         Renders the SNA and vizualizations page
     """
-    VizualizationManager.make_node_link(request)
     return render(request, 'sna_viz.html')
 
 @never_cache
@@ -78,7 +77,7 @@ def help_page(request):
     """
         Renders the help page
     """
-    with open('static/markdown/help_page.md') as f:
+    with open('static/help_page/help_page.md') as f:
         md_text = f.read()
     
     help_text = mark_safe(markdown(md_text, safe_mode='escape'))
@@ -432,5 +431,49 @@ def html_files_upload(request):
     else:
         return HttpResponse(
             json.dumps({"error": "error, GET request not supported"}),
+            content_type="application/json"
+        )
+    
+
+node_link_gen_status = "not_generated"
+def _gen_node_link_plotly_graph(request):
+    global node_link_gen_status
+    if node_link_gen_status == "generating":
+        return
+    node_link_gen_status = "generating"
+    VizualizationManager.make_node_link(request)
+    node_link_gen_status = "generated"
+    
+def gen_node_link(request):
+    """
+        Generates the node link graph, and also returns the status of whether it has been generated or not.
+    """
+    if request.method == "POST":
+        if node_link_gen_status == "generating":
+            return HttpResponse(
+            json.dumps({"error": "started generation"}),
+            content_type="application/json"
+        )
+        t = Thread(target=_gen_node_link_plotly_graph ,args=(request,))
+        t.start()
+        return HttpResponse(
+            json.dumps({"status": "started generation"}),
+            content_type="application/json"
+        )
+        
+    elif request.method == "GET":
+        if node_link_gen_status == "generating":
+            return HttpResponse(
+                json.dumps({"status": "still generating"}),
+                content_type="application/json"
+            )
+        elif node_link_gen_status == "generated":
+            return HttpResponse(
+            json.dumps({"status": "finished"}),
+            content_type="application/json"
+        )
+        elif node_link_gen_status == "not_generated":
+            return HttpResponse(
+            json.dumps({"error": "error, not generated yet"}),
             content_type="application/json"
         )

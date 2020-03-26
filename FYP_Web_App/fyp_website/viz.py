@@ -18,6 +18,8 @@ class VizualizationManager:
         edges = []
         rels = set()
         for obj in objs:
+            if obj.pred_relation == 'NA':
+                continue
             unique_ents.add(obj.head)
             unique_ents.add(obj.tail)
             edges.append((obj.head, obj.tail, obj.pred_relation))
@@ -35,10 +37,10 @@ class VizualizationManager:
 
         pos = graphviz_layout(G, prog='neato')   
         traces = []
-        colors = ['aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure',
-            'beige', 'bisque', 'black', 'darkslategrey',
-            'darkturquoise', 'darkviolet', 'deeppink', 'deepskyblue',
-            'dimgray', 'dimgrey', 'dodgerblue']
+        colors = ['deeppink', 'dodgerblue', 'aquamarine', 'azure',
+            'darkviolet', 'black', 'darkslategrey',
+            'darkturquoise', 'deepskyblue',
+            'dimgray']
 
         for edge in G.edges(data=True):
             x0, y0 = pos[edge[0]]
@@ -52,7 +54,9 @@ class VizualizationManager:
                 name='Entity-Entity Connection',
                 showlegend=False)
             traces.append(edge_trace)
-
+        
+        for r in rels:
+            print("{}: {}".format(r, colors[rels.index(r)]))
 
         entity_nodes = go.Scatter(
             x=[],

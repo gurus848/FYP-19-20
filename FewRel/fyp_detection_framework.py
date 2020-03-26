@@ -10,6 +10,7 @@ proj_path = os.path.abspath(os.path.dirname(__file__)).split("FewRel")[0]
 sys.path.insert(1, proj_path + 'src/modelling/')
 from ner_coref import NERCoref
 from unidecode import unidecode
+from sentiment import TargetSentiment
 
 class DataLoader:
     """
@@ -187,6 +188,7 @@ class DetectionFramework:
         self.queries = []
         self.ckpt_path = ckpt_path
         self.ner_coref = None
+        self.sentiment = TargetSentiment()
     
         
     def clear_support_queries(self):
@@ -319,8 +321,8 @@ class DetectionFramework:
                 result = self.detector.run_detection_algorithm(q, sup)
                 self.detector.print_result(*(result[:-1]))
 
-                #TODO: fix sentiment analyses
-                result.append('TODO')
+                sent_pred = self.sentiment.predict(q['sentence'], q['head'], q['tail'])
+                result.append(sent_pred)
                 order = list(r['name'] for r in sup)
                 result.append(int(self._calculate_conf(result[-2], order, result[3])))
                 result.append(i+1)  #the index of the relation support dataset which is used
