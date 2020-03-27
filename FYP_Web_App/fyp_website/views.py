@@ -1,7 +1,7 @@
 # for fyp_website app
 from django.http import HttpResponse, FileResponse
 from django.shortcuts import render, redirect
-from .forms import RelationSupportCSVDatasetForm, QueriesCSVDatasetForm, TextDatasetForm, NewsArticleURLForm, IndividualSentenceForm, ExistingCSVForm, HTMLFilesForm
+from .forms import RelationSupportCSVDatasetForm, QueriesCSVDatasetForm, TextDatasetForm, NewsArticleURLForm, IndividualSentenceForm, ExistingCSVForm, HTMLFilesForm, DeleteRelsCSVForm
 import json
 from django.views.decorators.cache import never_cache
 import os
@@ -68,8 +68,8 @@ def saved_results(request):
     timestamps = []
     for i in Source.objects.filter(user=request.user):
         timestamps.append({'id':i.source_id, 'val':i.datetime_extracted.strftime('%d/%m/%Y %H:%M')})
-    
-    return render(request, 'saved_results.html', {'timestamps':timestamps})
+    form = DeleteRelsCSVForm()
+    return render(request, 'saved_results.html', {'timestamps':timestamps, 'form':form})
 
 @never_cache
 @login_required
@@ -274,13 +274,12 @@ def do_analysis(ckpt, queries_type, request):
         for r in results:
             er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],sentiment=r[5],conf=r[6],ckpt=ckpt, source=s)
             er.save()
-        currently_analyzing = False
-    except ValueError as e:
+    except Exception as e:
         print(len(str(e)))
         print(str(e))
+        errors.append(str(e))
         tb = traceback.format_exc()
         print(tb)
-        errors.append(str(e))
     finally:
         currently_analyzing = False
     
@@ -380,18 +379,39 @@ def get_saved_result(request):
 
 def dwn_saved_result_csv(request):
     """
-        handles AJAX GET request to retrieve a previous result as a CSV
+        Handles AJAX GET request to retrieve a previous result as a CSV
     """
     source_id = request.GET.get('source_id')
     data = []
     objs = ExtractedRelation.objects.filter(source=source_id)
     for i in objs:
-        data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf))
+        data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, i.rel_id))
     
-    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence'])
+    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'rel_id'])
     df.to_csv("temp/analysis_results.csv", index=False)
     
     return FileResponse(open('temp/analysis_results.csv','rb'))
+
+def dwn_all_saved_results(request):
+    """
+        Handles AJAX GET request to retrieve all of the saved results from the past as a CSV
+    """
+        
+    sources = []
+    for i in Source.objects.filter(user=request.user):
+        sources.append((i.source_id, i.datetime_extracted.strftime('%d/%m/%Y %H:%M')))
+    
+    data = []
+    for s, timee in sources:
+        objs = ExtractedRelation.objects.filter(source=s)
+        for i in objs:
+            data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, timee, i.rel_id))
+    
+    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'Extraction Time', 'rel_id'])
+    df.to_csv("temp/all_analysis_results.csv", index=False)
+    
+    return FileResponse(open('temp/all_analysis_results.csv','rb'))
+    
     
 def dataset_constructor_csv_file_upload(request):
     """
@@ -435,26 +455,38 @@ def html_files_upload(request):
         )
     
 
+sna_viz_errors = []  #list of the errors whcih have been generated
+sna_viz_error_i = 0  #index from which new errors can be sent
+    
 node_link_gen_status = "not_generated"
-def _gen_node_link_plotly_graph(request):
+def _gen_node_link_plotly_graph(request, dataset_type):
     global node_link_gen_status
-    if node_link_gen_status == "generating":
-        return
-    node_link_gen_status = "generating"
-    VizualizationManager.make_node_link(request)
-    node_link_gen_status = "generated"
+    try:
+        if node_link_gen_status == "generating":
+            return
+        node_link_gen_status = "generating"
+        VizualizationManager.make_node_link(request, dataset_type)
+        node_link_gen_status = "generated"
+    except Exception as e:
+        node_link_gen_status = "error"
+        print(str(e))
+        sna_viz_errors.append(str(e))
+        tb = traceback.format_exc()
+        print(tb)
     
 def gen_node_link(request):
     """
         Generates the node link graph, and also returns the status of whether it has been generated or not.
     """
+    global sna_viz_error_i
     if request.method == "POST":
+        dataset_type = request.POST.get('dataset')
         if node_link_gen_status == "generating":
             return HttpResponse(
             json.dumps({"error": "started generation"}),
             content_type="application/json"
         )
-        t = Thread(target=_gen_node_link_plotly_graph ,args=(request,))
+        t = Thread(target=_gen_node_link_plotly_graph ,args=(request, dataset_type))
         t.start()
         return HttpResponse(
             json.dumps({"status": "started generation"}),
@@ -475,5 +507,67 @@ def gen_node_link(request):
         elif node_link_gen_status == "not_generated":
             return HttpResponse(
             json.dumps({"error": "error, not generated yet"}),
+            content_type="application/json"
+        )
+        elif node_link_gen_status == "error":
+            from_i = sna_viz_error_i
+            sna_viz_error_i = len(sna_viz_errors)
+            return HttpResponse(
+                json.dumps({'status':'error',
+                           'errors':sna_viz_errors[from_i:]}),
+                content_type="application/json"
+            )
+            
+        
+def upload_sna_viz_data_csv(request):
+    """
+        Uploads the extracted relations CSV dataset which is to be used for SNA and Viz.
+    """
+    if request.method == "POST":
+        
+        f = request.FILES['dataset']
+        handle_uploaded_file(f, 'temp/sna_viz/sna_viz_dataset.csv')
+
+        return HttpResponse(
+            json.dumps({"status": "success"}),
+            content_type="application/json"
+        )
+    else:
+        return HttpResponse(
+            json.dumps({"error": "error, GET request not supported"}),
+            content_type="application/json"
+        )
+    
+def del_results_csv(request):
+    """
+        Called when a CSV is uploaded to delete all relations with the relation ids mentioned.
+    """
+    if request.method == "POST":
+        try:
+            sources = set()
+            dataset = request.FILES['dataset']
+            handle_uploaded_file(dataset, 'temp/del_rels_csv.csv')
+            df = pd.read_csv('temp/del_rels_csv.csv')
+            for i, row in df.iterrows():
+                rel_id = row['rel_id']
+                objs = ExtractedRelation.objects.filter(rel_id=rel_id)
+                for o in objs:
+                    sources.add(o.source)
+                objs.delete()
+            for s in sources:
+                if len(ExtractedRelation.objects.filter(source=s)) == 0:
+                    Source.objects.filter(source_id=s.source_id).delete()
+        except Exception as e:
+            print(str(e))
+            tb = traceback.format_exc()
+            print(tb)
+            
+            return HttpResponse(
+            json.dumps({"status": "error"}),
+            content_type="application/json"
+        )
+            
+        return HttpResponse(
+            json.dumps({"status": "success"}),
             content_type="application/json"
         )

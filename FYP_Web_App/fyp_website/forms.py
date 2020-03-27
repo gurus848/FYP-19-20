@@ -20,3 +20,6 @@ class HTMLFilesForm(forms.Form):
     
 class ExistingCSVForm(forms.Form):
     existing_csv_file = forms.FileField(label='Existing Dataset CSV')
+    
+class DeleteRelsCSVForm(forms.Form):
+    delete_rels_csv = forms.FileField(label='Select CSV')

@@ -36,18 +36,20 @@ $(document).ready(function() {
 });
 
 do_check_request = false;
-function start_success_check(json) {
+//starts the AJAX node link graph generation checks
+function start_node_link_success_check(json) {
     if (json.hasOwnProperty('status')){
-        $("#node_link_viz").html('');
+        $("#node_link_viz").html('Loading Graph....');
         alert('Generating Graph! Please Wait!');
-        setTimeout(check_analysis_results, 3000);
+        setTimeout(check_node_link_results, 3000);
         do_check_request = true;
     }else{
         alert('Error!');
     }
 }
 
-function check_analysis_results() {
+//periodically does an AJAX get request to check the results of the node link graph generation
+function check_node_link_results() {
     $.ajax({
         url : "gen_node_link/", // the endpoint
         type : "GET", // http method
@@ -62,7 +64,19 @@ function check_analysis_results() {
             }
             if(json.status == "finished"){
                 do_check_request = false;
-                $("#node_link_viz").load("../static/node_link_viz.html"); 
+                $.get("../static/node_link_viz.html", function( my_var ) {
+                    $("#node_link_viz").html(my_var)
+                }, 'html');
+            }else if(json.status == "error"){
+                do_check_request = false;
+                $("#node_link_viz").html('');
+                $('#error_here_yet').empty();
+                alert('Error! Please see errors table');
+                var d = new Date();
+                for(var i = 0; i < json.errors.length; i++){
+                    $('#errors_div').prepend("<p>"+d+": "+json.errors[i]+"</p>");
+                }
+                return;
             }
         },
 
@@ -74,23 +88,44 @@ function check_analysis_results() {
         complete: function() {
             // Schedule the next request when the current one's complete, even if it fails
             if(do_check_request){
-                setTimeout(check_analysis_results, 2000);
+                setTimeout(check_node_link_results, 2000);
             }
         }
     });
 }
 
-//when the generate node link graph button is clicked
-$('#gen_node_link_graph').click(function(){
+//uploads a csv dataset to the server if necessary and then runs the callback specified by the user to do further requests
+function upload_dataset_csv_then_run(callback) {
+    event.preventDefault();
+    if($('input[name="dataset_selection"]:checked').val() == "db"){
+        callback.call();
+        return;
+    }
+    var formData = new FormData();
+    if($('#rel_csv_file').val() == ""){
+        alert('Error! No file selected!');
+        return;
+    }
+    var dataset_name = $('#rel_csv_file')[0].files[0].name
+    //validating that only csv files can be uploaded
+    if (dataset_name.slice(-3) != 'csv'){
+        alert('Please upload csv files only!');
+        return;
+    }
     
+    
+    formData.append('dataset', $('#rel_csv_file')[0].files[0]);
     $.ajax({
-        url : "gen_node_link/", // the endpoint
+        url : "upload_csv/", // the endpoint
         type : "POST", // http method
- 
+        data : formData,
+        processData: false,
+        contentType: false,
+
         // handle a successful response
         success : function(json) {
             console.log(json); // log the returned json to the console
-            start_success_check(json);
+            callback.call();
         },
 
         // handle a non-successful response
@@ -98,5 +133,31 @@ $('#gen_node_link_graph').click(function(){
             console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
         }
     });
+}
+
+//starts the node link graph generation process
+function gen_node_link_graph() {
+    $.ajax({
+        url : "gen_node_link/", // the endpoint
+        type : "POST", // http method
+        data : {"dataset": $('input[name="dataset_selection"]:checked').val()},
+ 
+        // handle a successful response
+        success : function(json) {
+            console.log(json); // log the returned json to the console
+            start_node_link_success_check(json);
+        },
+
+        // handle a non-successful response
+        error : function(xhr,errmsg,err) {
+            console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+        }
+    });
+}
+
+//when the generate node link graph button is clicked
+$('#gen_node_link_graph').click(function(){
+    
+    upload_dataset_csv_then_run(gen_node_link_graph);
     
 });

@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+e{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}FYP: Saved Results{% endblock %}
@@ -21,6 +21,28 @@
         </select>
         <br/>
         <button id="retrieve_result_button" class="btn btn-success">Retrieve</button>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        Download All Analysis Results as CSV
+    </div>
+    <div class="card-body">
+        <button id="retrieve_all_result_button" class="btn btn-primary">Retrieve All Results</button>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        Delete Selected Saved Results
+    </div>
+    <div class="card-body">
+        <form method="post" id="del_csv_form">
+            {% csrf_token %}
+            {% include 'form_template.html' with form=form %}
+            <button type="submit" class="btn btn-danger">Delete Selected Results</button>
+        </form>
     </div>
 </div>
 

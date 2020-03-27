@@ -45,8 +45,11 @@ urlpatterns = [
     url(r'^dwn_analysis_csv/$', views.dwn_analysis_csv, name='dwn_analysis_csv'),
     url(r'^saved_results/get/$', views.get_saved_result, name='get_saved_result'),
     url(r'^saved_results/get_csv/$', views.dwn_saved_result_csv, name='dwn_saved_result'),
+    url(r'^saved_results/dwn_all/$', views.dwn_all_saved_results, name='dwn_all_saved_results'),
+    url(r'^saved_results/del_csv/$', views.del_results_csv, name='del_results_csv'),
     url(r'^dataset_cntr/csv_file_upload/$', views.dataset_constructor_csv_file_upload, name='dataset_constructor_csv_file_upload'),
     url(r'^del_rel_sup_csv/$', views.del_rel_sup_csv, name='del_rel_sup_csv'),
     url(r'^html_files_upload/$', views.html_files_upload, name='html_files_upload'),
-    url(r'^sna_viz/gen_node_link/$', views.gen_node_link, name='gen_node_link')
+    url(r'^sna_viz/gen_node_link/$', views.gen_node_link, name='gen_node_link'),
+    url(r'^sna_viz/upload_csv/$', views.upload_sna_viz_data_csv, name='upload_sna_viz_data_csv')
 ]
