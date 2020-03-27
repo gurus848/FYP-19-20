@@ -10,12 +10,45 @@ proj_path = os.path.abspath(os.path.dirname(__file__)).split("FewRel")[0]
 sys.path.insert(1, proj_path + 'src/modelling/')
 from ner_coref import NERCoref
 from unidecode import unidecode
+from sentiment import TargetSentiment
 
 class DataLoader:
     """
         Used to load data, such as the relation support dataset. Loads the data in the current format
     """
-
+    
+    @staticmethod
+    def _get_indices_alt(tokens, tokenized_head, tokenized_tail):
+        """
+            Alternative implemention for getting the indices of the head and tail if exact matches cannot be done.
+        """
+        head_indices = None
+        tail_indices = None
+        print(tokens, tokenized_head, tokenized_tail)
+        for i in range(len(tokens)):
+            if tokens[i] in tokenized_head[0]:
+                broke = False
+                print(tokens[i:i+len(tokenized_head)], tokenized_head)
+                for k, j in zip(tokens[i:i+len(tokenized_head)], tokenized_head):
+                    if k not in j:
+                        broke = True
+                        break
+                if not broke:
+                    head_indices = list(range(i,i+len(tokenized_head)))
+                    break
+        for i in range(len(tokens)):
+            if tokens[i] in tokenized_tail[0]:
+                broke = False
+                print(tokens[i:i+len(tokenized_head)], tokenized_head)
+                for k, j in zip(tokens[i:i+len(tokenized_tail)], tokenized_tail):
+                    if k not in j:
+                        broke = True
+                        break
+                if not broke:
+                    tail_indices = list(range(i,i+len(tokenized_tail)))
+                    break
+        return head_indices, tail_indices
+    
     @staticmethod
     def check_loaded_relation_support_dataframe(df):
         """
@@ -56,6 +89,10 @@ class DataLoader:
                 if tokens[i] == tokenized_tail[0] and tokens[i:i+len(tokenized_tail)] == tokenized_tail:
                     tail_indices = list(range(i,i+len(tokenized_tail)))
                     break
+            
+            if head_indices is None or tail_indices is None:
+                head_indices, tail_indices = DataLoader._get_indices_alt(tokens, tokenized_head, tokenized_tail)
+                
             if head_indices is None or tail_indices is None:
                 error_string = ""
                 error_string += ("Problem sentence: {}\n".format(sentence))
@@ -151,6 +188,7 @@ class DetectionFramework:
         self.queries = []
         self.ckpt_path = ckpt_path
         self.ner_coref = None
+        self.sentiment = TargetSentiment()
     
         
     def clear_support_queries(self):
@@ -273,7 +311,7 @@ class DetectionFramework:
             
         results = []
         
-        for sup in self.support:   #iterate through the support datasets
+        for i, sup in enumerate(self.support):   #iterate through the support datasets
             for q in self.queries:  #iterate through the possible queries
                 if cancel_flag[0]:   #if the user has said that it should be cancelled, then cancel it
                     break
@@ -283,10 +321,11 @@ class DetectionFramework:
                 result = self.detector.run_detection_algorithm(q, sup)
                 self.detector.print_result(*(result[:-1]))
 
-                #TODO: fix sentiment analyses
-                result.append('TODO')
+                sent_pred = self.sentiment.predict(q['sentence'], q['head'], q['tail'])
+                result.append(sent_pred)
                 order = list(r['name'] for r in sup)
                 result.append(int(self._calculate_conf(result[-2], order, result[3])))
+                result.append(i+1)  #the index of the relation support dataset which is used
                 results.append(result)
                 if rt_results is not None:
                     rt_results.append(result)

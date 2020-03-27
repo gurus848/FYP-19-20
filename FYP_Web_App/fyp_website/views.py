@@ -11,10 +11,12 @@ sys.path.insert(1, proj_path + 'FewRel')  #so that the relation extraction frame
 from fyp_detection_framework import DetectionFramework
 from threading import Thread
 from .models import ExtractedRelation, Source
+from .viz import VizualizationManager
 import pandas as pd
 from django.contrib.auth.decorators import login_required
 from django.utils.html import mark_safe
 from markdown import markdown
+import traceback
 
 @never_cache
 @login_required
@@ -31,7 +33,7 @@ def home(request):
     html_files_form = HTMLFilesForm()
     data = []
     for i in results:
-        data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6]})
+        data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6], 'dataset':i[7]})
     proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
     ckpts = [f for f in os.listdir(proj_path + "FewRel/checkpoint") if '.pth.tar' in f]
     rel_sup_datasets = []
@@ -75,7 +77,7 @@ def help_page(request):
     """
         Renders the help page
     """
-    with open('static/markdown/help_page.md') as f:
+    with open('static/help_page/help_page.md') as f:
         md_text = f.read()
     
     help_text = mark_safe(markdown(md_text, safe_mode='escape'))
@@ -276,6 +278,8 @@ def do_analysis(ckpt, queries_type, request):
     except ValueError as e:
         print(len(str(e)))
         print(str(e))
+        tb = traceback.format_exc()
+        print(tb)
         errors.append(str(e))
     finally:
         currently_analyzing = False
@@ -322,7 +326,7 @@ def get_analysis_results(request):
         client_index_till = int(request.GET.get('cur_index_reached', 0))
         new_data = []
         for i in results[client_index_till:]:
-            new_data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6]})
+            new_data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6], 'dataset':i[7]})
         status = 'analysis_in_progress'
         if not currently_analyzing:
             status = 'finished_analysis'
@@ -427,5 +431,49 @@ def html_files_upload(request):
     else:
         return HttpResponse(
             json.dumps({"error": "error, GET request not supported"}),
+            content_type="application/json"
+        )
+    
+
+node_link_gen_status = "not_generated"
+def _gen_node_link_plotly_graph(request):
+    global node_link_gen_status
+    if node_link_gen_status == "generating":
+        return
+    node_link_gen_status = "generating"
+    VizualizationManager.make_node_link(request)
+    node_link_gen_status = "generated"
+    
+def gen_node_link(request):
+    """
+        Generates the node link graph, and also returns the status of whether it has been generated or not.
+    """
+    if request.method == "POST":
+        if node_link_gen_status == "generating":
+            return HttpResponse(
+            json.dumps({"error": "started generation"}),
+            content_type="application/json"
+        )
+        t = Thread(target=_gen_node_link_plotly_graph ,args=(request,))
+        t.start()
+        return HttpResponse(
+            json.dumps({"status": "started generation"}),
+            content_type="application/json"
+        )
+        
+    elif request.method == "GET":
+        if node_link_gen_status == "generating":
+            return HttpResponse(
+                json.dumps({"status": "still generating"}),
+                content_type="application/json"
+            )
+        elif node_link_gen_status == "generated":
+            return HttpResponse(
+            json.dumps({"status": "finished"}),
+            content_type="application/json"
+        )
+        elif node_link_gen_status == "not_generated":
+            return HttpResponse(
+            json.dumps({"error": "error, not generated yet"}),
             content_type="application/json"
         )

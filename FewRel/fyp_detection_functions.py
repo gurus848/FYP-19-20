@@ -122,6 +122,37 @@ class Detector:
 
 #         return combinations(entity_info, 2)
     
+    def _get_indices_alt(self, tokens, tokenized_head, tokenized_tail):
+        """
+            Alternative implemention for getting the indices of the head and tail if exact matches cannot be done.
+        """
+        head_indices = None
+        tail_indices = None
+        print(tokens, tokenized_head, tokenized_tail)
+        for i in range(len(tokens)):
+            if tokens[i] in tokenized_head[0]:
+                broke = False
+                print(tokens[i:i+len(tokenized_head)], tokenized_head)
+                for k, j in zip(tokens[i:i+len(tokenized_head)], tokenized_head):
+                    if k not in j:
+                        broke = True
+                        break
+                if not broke:
+                    head_indices = list(range(i,i+len(tokenized_head)))
+                    break
+        for i in range(len(tokens)):
+            if tokens[i] in tokenized_tail[0]:
+                broke = False
+                print(tokens[i:i+len(tokenized_tail)], tokenized_tail)
+                for k, j in zip(tokens[i:i+len(tokenized_tail)], tokenized_tail):
+                    if k not in j:
+                        broke = True
+                        break
+                if not broke:
+                    tail_indices = list(range(i,i+len(tokenized_tail)))
+                    break
+        return head_indices, tail_indices
+    
     def run_detection_algorithm(self, query, relation_data):
         """
             Runs the algorithm/model on the given query using the given support data.
@@ -147,6 +178,10 @@ class Detector:
             if tokens[i] == tokenized_tail[0] and tokens[i:i+len(tokenized_tail)] == tokenized_tail:
                 tail_indices = list(range(i,i+len(tokenized_tail)))
                 break
+        
+        if head_indices is None or tail_indices is None:
+            head_indices, tail_indices = self._get_indices_alt(tokens, tokenized_head, tokenized_tail)
+            
         if head_indices is None or tail_indices is None:
             print(tokenized_head)
             print(tokenized_tail)

@@ -47,5 +47,6 @@ urlpatterns = [
     url(r'^saved_results/get_csv/$', views.dwn_saved_result_csv, name='dwn_saved_result'),
     url(r'^dataset_cntr/csv_file_upload/$', views.dataset_constructor_csv_file_upload, name='dataset_constructor_csv_file_upload'),
     url(r'^del_rel_sup_csv/$', views.del_rel_sup_csv, name='del_rel_sup_csv'),
-    url(r'^html_files_upload/$', views.html_files_upload, name='html_files_upload')
+    url(r'^html_files_upload/$', views.html_files_upload, name='html_files_upload'),
+    url(r'^sna_viz/gen_node_link/$', views.gen_node_link, name='gen_node_link')
 ]
