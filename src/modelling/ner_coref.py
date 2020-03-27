@@ -205,9 +205,15 @@ class NERCoref(object):
                 text += ' -'
             
             # avoid space between decimal points
-            elif t == '.' and tokens[i-1].isdigit() and tokens[i+1].isdigit():
-                text += t + tokens[i+1]
-                skip.append(i+1)
+            elif t in '.,' and tokens[i-1].isdigit():
+                text += t
+                
+                try: 
+                    if tokens[i+1].isdigit():
+                        text += tokens[i+1]
+                        skip.append(i+1)
+                except:
+                    pass
             
             # avoid trailing space for other types of punctuation
             elif t in '!"#$%&\\\'()*+,./:;<=>?@[\\]^_`{|}~':
