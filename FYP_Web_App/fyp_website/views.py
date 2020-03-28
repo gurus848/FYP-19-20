@@ -67,7 +67,7 @@ def saved_results(request):
     """
     timestamps = []
     for i in Source.objects.filter(user=request.user):
-        timestamps.append({'id':i.source_id, 'val':i.datetime_extracted.strftime('%d/%m/%Y %H:%M')})
+        timestamps.append({'id':i.source_id, 'val':i.datetime_extracted.strftime('%d/%m/%Y %H:%M') + "    " + i.source})
     form = DeleteRelsCSVForm()
     return render(request, 'saved_results.html', {'timestamps':timestamps, 'form':form})
 
@@ -384,10 +384,11 @@ def dwn_saved_result_csv(request):
     source_id = request.GET.get('source_id')
     data = []
     objs = ExtractedRelation.objects.filter(source=source_id)
+    s = Source.objects.filter(source_id=source_id)[0]
     for i in objs:
-        data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, i.rel_id))
+        data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, s.source, i.rel_id))
     
-    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'rel_id'])
+    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'Source', 'rel_id'])
     df.to_csv("temp/analysis_results.csv", index=False)
     
     return FileResponse(open('temp/analysis_results.csv','rb'))
@@ -399,15 +400,15 @@ def dwn_all_saved_results(request):
         
     sources = []
     for i in Source.objects.filter(user=request.user):
-        sources.append((i.source_id, i.datetime_extracted.strftime('%d/%m/%Y %H:%M')))
+        sources.append((i.source_id, i.datetime_extracted.strftime('%d/%m/%Y %H:%M'), i.source))
     
     data = []
-    for s, timee in sources:
+    for s, timee, s_name in sources:
         objs = ExtractedRelation.objects.filter(source=s)
         for i in objs:
-            data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, timee, i.rel_id))
+            data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, timee, s_name, i.rel_id))
     
-    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'Extraction Time', 'rel_id'])
+    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'Extraction Time', 'Source', 'rel_id'])
     df.to_csv("temp/all_analysis_results.csv", index=False)
     
     return FileResponse(open('temp/all_analysis_results.csv','rb'))
@@ -571,3 +572,9 @@ def del_results_csv(request):
             json.dumps({"status": "success"}),
             content_type="application/json"
         )
+    
+def gen_edg_bundle(request):
+    """
+        Handles requests to generate a hierarchical edge bundling visualizations.
+    """
+    pass

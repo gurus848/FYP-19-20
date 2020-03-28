@@ -62,3 +62,7 @@ This web application can be used to do Few-Shot Relation Classification on a var
 
 * The first time you run the server after setting it up, run 'python manage.py makemigrations' and then 'python manage.py migrate'. To make the admin user run 'python manage.py createsuperuser'.
 
+## Admin Interface
+
+* You can access the admin interface at http://website_url/admin. In the admin interface you can directly manipulate the database if you want to. 
+

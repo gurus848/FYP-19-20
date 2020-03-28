@@ -161,3 +161,28 @@ $('#gen_node_link_graph').click(function(){
     upload_dataset_csv_then_run(gen_node_link_graph);
     
 });
+
+//starts the edge bundling generation process
+function gen_edge_bundling() {
+    $.ajax({
+        url : "gen_edg_bundle/", // the endpoint
+        type : "POST", // http method
+        data : {"dataset": $('input[name="dataset_selection"]:checked').val()},
+ 
+        // handle a successful response
+        success : function(json) {
+            console.log(json); // log the returned json to the console
+            //TODO
+        },
+
+        // handle a non-successful response
+        error : function(xhr,errmsg,err) {
+            console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+        }
+    });
+}
+
+//called when the generate edge bundling button is clicked
+$('#gen_edg_bundling').click(function() {
+    upload_dataset_csv_then_run(gen_edge_bundling);
+});

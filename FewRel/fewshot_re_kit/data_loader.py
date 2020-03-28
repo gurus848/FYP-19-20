@@ -159,18 +159,14 @@ class FewRelDatasetPair(data.Dataset):
             indices = np.random.choice(
                     list(range(len(self.json_data[class_name]))), 
                     self.K + self.Q, False)
-#             print(index, class_name)
             count = 0
             for j in indices:
-
                 word  = self.__getraw__(
                         self.json_data[class_name][j])
                 if count < self.K:
                     support.append(word)
-#                     print("support")
                 else:
                     query.append(word)
-#                     print("query")
                 count += 1
 
             query_label += [i] * self.Q
@@ -207,8 +203,6 @@ class FewRelDatasetPair(data.Dataset):
                 fusion_set['mask'].append(mask_tensor)
                 fusion_set['seg'].append(seg_tensor)
 
-#         print(support, query, query_label)
-#         print(len(fusion_set['word']), len(query_label))
         return fusion_set, query_label
     
     def __len__(self):

@@ -21,6 +21,10 @@
           <label for="uploaded">Upload Predicted Relation CSV File: </label>
           <input type="file" id="rel_csv_file" name="rel_csv_file">
     </form>
+        <br/>
+        <p>
+            If the relations are specified in a CSV, then the columns expected are 'Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment' and 'Confidence'. You can use a dataset downloaded from the Saved Results page.
+        </p>
     </div>
 </div>
 
@@ -36,12 +40,22 @@ TODO
 <h1 class="mt-3">Visualizations</h1>
 
 <div class="card mt-3">
-<div class="card-header">1. Node-Link Graph of all Entities and Relationships</div>
-<div class="card-body">
-<button id="gen_node_link_graph" class="btn btn-primary">Generate Graph</button>
-<br/>
-<div id="node_link_viz">
+    <div class="card-header">1. Node-Link Graph of all Entities and Relationships</div>
+    <div class="card-body">
+        <button id="gen_node_link_graph" class="btn btn-primary">Generate Graph</button>
+        <br/>
+        <div id="node_link_viz">
+        </div>
+    </div>
 </div>
+
+<div class="card mt-3">
+    <div class="card-header">2. Relationships shown through Hierarchichal Edge Bundling</div>
+    <div class="card-body">
+        <button id="gen_edg_bundling" class="btn btn-primary">Generate Visualization</button>
+        <br/>
+        <div id="edg_bundle_viz">
+        </div>
     </div>
 </div>
 

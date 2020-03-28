@@ -1,4 +1,4 @@
-e{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}FYP: Saved Results{% endblock %}
@@ -29,7 +29,7 @@ e{% extends 'base.html' %}
         Download All Analysis Results as CSV
     </div>
     <div class="card-body">
-        <button id="retrieve_all_result_button" class="btn btn-primary">Retrieve All Results</button>
+        <button id="retrieve_all_result_button" class="btn btn-primary">Download All Results</button>
     </div>
 </div>
 
@@ -38,6 +38,9 @@ e{% extends 'base.html' %}
         Delete Selected Saved Results
     </div>
     <div class="card-body">
+        <p>
+            Will delete any extracted relation stored in the database that has ID equal to the IDs mentioned in the 'rel_id' column in the uploaded CSV. The IDs of the relations stored in the database can be found by downloading the saved analysis results above. 
+        </p>
         <form method="post" id="del_csv_form">
             {% csrf_token %}
             {% include 'form_template.html' with form=form %}

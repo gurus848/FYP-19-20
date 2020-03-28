@@ -51,5 +51,6 @@ urlpatterns = [
     url(r'^del_rel_sup_csv/$', views.del_rel_sup_csv, name='del_rel_sup_csv'),
     url(r'^html_files_upload/$', views.html_files_upload, name='html_files_upload'),
     url(r'^sna_viz/gen_node_link/$', views.gen_node_link, name='gen_node_link'),
-    url(r'^sna_viz/upload_csv/$', views.upload_sna_viz_data_csv, name='upload_sna_viz_data_csv')
+    url(r'^sna_viz/upload_csv/$', views.upload_sna_viz_data_csv, name='upload_sna_viz_data_csv'),
+    url(r'^sna_viz/gen_edg_bundle/$', views.gen_edg_bundle, name='gen_edg_bundle')
 ]
