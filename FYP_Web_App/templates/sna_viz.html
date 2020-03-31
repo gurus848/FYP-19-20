@@ -19,7 +19,14 @@
           <label for="db">All data in Database</label><br>
           <input type="radio" id="uploaded" name="dataset_selection" value="uploaded">
           <label for="uploaded">Upload Predicted Relation CSV File: </label>
-          <input type="file" id="rel_csv_file" name="rel_csv_file">
+            <input type="file" id="rel_csv_file" name="rel_csv_file"> <br/>
+            <input type="radio" id="specific_timestamp" name="dataset_selection" value="specific_timestamp">
+        <label class="mt-3" for="timestamp_selector">Choose timestamp of retrieved results to use:</label>
+        <select id="timestamp_selector">
+            {% for i in timestamps %}
+            <option value="{{ i.id }}"> {{ i.val }} </option>
+            {% endfor %}
+        </select>
     </form>
         <br/>
         <p>

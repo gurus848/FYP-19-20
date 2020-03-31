@@ -8,21 +8,7 @@
     <li class="breadcrumb-item active">View Saved Results</li>
 </ol>
 
-<div class="card">
-    <div class="card-header">
-        Retrieve Analysis Results
-    </div>
-    <div class="card-body">
-        <label class="mt-3" for="timestamp_selector">Choose timestamp of results to retrieve:</label>
-        <select id="timestamp_selector">
-            {% for i in timestamps %}
-            <option value="{{ i.id }}"> {{ i.val }} </option>
-            {% endfor %}
-        </select>
-        <br/>
-        <button id="retrieve_result_button" class="btn btn-success">Retrieve</button>
-    </div>
-</div>
+
 
 <div class="card mt-3">
     <div class="card-header">
@@ -46,6 +32,23 @@
             {% include 'form_template.html' with form=form %}
             <button type="submit" class="btn btn-danger">Delete Selected Results</button>
         </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        Retrieve Analysis Results
+    </div>
+    <div class="card-body">
+        <label class="mt-3" for="timestamp_selector">Choose timestamp of results to retrieve:</label>
+        <select id="timestamp_selector">
+            {% for i in timestamps %}
+            <option value="{{ i.id }}"> {{ i.val }} </option>
+            {% endfor %}
+        </select>
+        <br/>
+        <br/>
+        <button id="retrieve_result_button" class="btn btn-success">Retrieve</button>
     </div>
 </div>
 

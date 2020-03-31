@@ -11,7 +11,6 @@ class VizualizationManager:
         """
             Constructs a node link graph as a html file using plotly and the info in the database.
         """
-        print('dataset_type: {}'.format(dataset_type))
         unique_ents = set()
         edges = []
         rels = set()
@@ -36,7 +35,17 @@ class VizualizationManager:
                 unique_ents.add(row['Tail'])
                 edges.append((row['Head'], row['Tail'], row['Predicted Relation']))
                 rels.add(row['Predicted Relation'])
-        
+        elif dataset_type == "specific_timestamp":
+            source_id = request.POST.get('source_id')
+
+            objs = ExtractedRelation.objects.filter(source=source_id)
+            for obj in objs:
+                if obj.pred_relation == 'NA':  #ignore NA relations
+                    continue
+                unique_ents.add(obj.head)
+                unique_ents.add(obj.tail)
+                edges.append((obj.head, obj.tail, obj.pred_relation))
+                rels.add(obj.pred_relation)
         
         rels = list(rels)
         

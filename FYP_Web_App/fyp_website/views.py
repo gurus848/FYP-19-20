@@ -45,10 +45,12 @@ def home(request):
 @login_required
 def sna_viz(request):
     """
-        TODO
         Renders the SNA and vizualizations page
     """
-    return render(request, 'sna_viz.html')
+    timestamps = []
+    for i in Source.objects.filter(user=request.user):
+        timestamps.append({'id':i.source_id, 'val':i.datetime_extracted.strftime('%d/%m/%Y %H:%M') + "    " + i.source})
+    return render(request, 'sna_viz.html', {'timestamps':timestamps})
 
 @never_cache
 @login_required
@@ -213,7 +215,7 @@ results = []  #list of the results which have been generated so far
 cancel_flag=[False]  #flag used to indicate whether the analysis should be cancelled or not
 errors = []  #list of the errors whcih have been generated
 error_i = 0  #index from which new errors can be sent
-d = DetectionFramework(ckpt_path=proj_path + "FewRel/checkpoint/pair-bert-combined_train-val_wiki-5-3-na3-3.pth.tar") #the detection framework
+d = DetectionFramework(ckpt_path=proj_path + "FewRel/checkpoint/NA-predict-model.pth.tar") #the detection framework
 def do_analysis(ckpt, queries_type, request):
     """
         Runs the actual analysis in a different thread
@@ -386,9 +388,9 @@ def dwn_saved_result_csv(request):
     objs = ExtractedRelation.objects.filter(source=source_id)
     s = Source.objects.filter(source_id=source_id)[0]
     for i in objs:
-        data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, s.source, i.rel_id))
+        data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, s.source, i.rel_id, os.path.basename(i.ckpt)))
     
-    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'Source', 'rel_id'])
+    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'Source', 'rel_id', 'Checkpoint'])
     df.to_csv("temp/analysis_results.csv", index=False)
     
     return FileResponse(open('temp/analysis_results.csv','rb'))
@@ -406,9 +408,9 @@ def dwn_all_saved_results(request):
     for s, timee, s_name in sources:
         objs = ExtractedRelation.objects.filter(source=s)
         for i in objs:
-            data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, timee, s_name, i.rel_id))
+            data.append((i.sentence, i.head, i.tail, i.pred_relation, i.sentiment, i.conf, timee, s_name, i.rel_id, os.path.basename(i.ckpt)))
     
-    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'Extraction Time', 'Source', 'rel_id'])
+    df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence', 'Extraction Time', 'Source', 'rel_id', 'Checkpoint'])
     df.to_csv("temp/all_analysis_results.csv", index=False)
     
     return FileResponse(open('temp/all_analysis_results.csv','rb'))

@@ -100,6 +100,9 @@ function upload_dataset_csv_then_run(callback) {
     if($('input[name="dataset_selection"]:checked').val() == "db"){
         callback.call();
         return;
+    }else if($('input[name="dataset_selection"]:checked').val() == "specific_timestamp"){
+        callback.call();
+        return;
     }
     var formData = new FormData();
     if($('#rel_csv_file').val() == ""){
@@ -140,7 +143,7 @@ function gen_node_link_graph() {
     $.ajax({
         url : "gen_node_link/", // the endpoint
         type : "POST", // http method
-        data : {"dataset": $('input[name="dataset_selection"]:checked').val()},
+        data : {"dataset": $('input[name="dataset_selection"]:checked').val(), 'source_id': $("#timestamp_selector").val()},
  
         // handle a successful response
         success : function(json) {
