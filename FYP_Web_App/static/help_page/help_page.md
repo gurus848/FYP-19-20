@@ -41,7 +41,7 @@ This web application can be used to do Few-Shot Relation Classification on a var
 * For the relation support dataset, it is best that you use approximately 5-way 5-shot, though other settings may also work well.
 * The sentences used for the relation support dataset should be from newspaper articles or similar sources for best results. For each of the relations, the sentences used should be varied in the way in which they depict the relation. For examples, look at the sample relation support dataset. 
 * The relations used should ideally be very different from each other, so that there is no ambiguity in the meaning of a relationship (ex. 'like' and 'love' are too similar).
-* In the dataset, the spelling and capitalization and punctuation of the heads and tails should be exactly that in the example sentence. Please ensure that there are no extra spaces at the end of the head/tail etc.
+* In the dataset, the spelling and capitalization and punctuation of the heads and tails should be exactly that in the example sentence. Please ensure that there are no extra spaces at the end of the head/tail etc. Coreference resolution will not be done on the sentences by the system, though you can do it beforehand in the sentence if you like. 
 * The column names in the relation support dataset should be exactly the same as that in the sample dataset. This rule applies to all datasets used throughout the app.
 
 ## SNA and Viz
