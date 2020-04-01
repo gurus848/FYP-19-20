@@ -113,6 +113,38 @@ class NERCoref(object):
         print("===========================")
         print("=== Initialisation Done ===")
         print("===========================")
+    
+    def _get_space_map(self, text, tokens):
+        """
+            Provides a flat list of 0's and 1's for whether
+            a space exists after a bert token in the text.
+            
+            Args:
+                text: text that has been tokenized to tokens.
+                
+                tokens: bert tokens from text.
+            
+            Returns:
+                spaces (list): list indexed by index of token
+                    with corresponding 1 for no space after the
+                    token, 0 otherwise.
+        """
+        detokenized = ""
+        spaces = list()
+        for i, tok in enumerate(tokens):
+            detokenized += tok[2:] if tok.startswith('##') else tok
+
+            n = len(detokenized)
+            if n == len(text):
+                spaces.append(0)
+
+            elif text[n] == " ":
+                detokenized += " "
+                spaces.append(1)
+            else:
+                spaces.append(0)
+
+        return spaces
         
     
     def _get_subtoken_map(self, tokens):
@@ -180,7 +212,7 @@ class NERCoref(object):
         return data
 
     
-    def _bert_detokenize(self, tokens):
+    def _bert_detokenize(self, tokens, space_map):
         """
             Converts a list of bert tokens to text.
 
@@ -188,44 +220,17 @@ class NERCoref(object):
                 tokens (list): list of bert tokens
 
             Returns:
-                text (str): the merged text from tokens. 
+                detokenized (str): the merged text from tokens. 
         """
-        text = ""
-        skip = list()
-        for i, t in enumerate(tokens):
-            if i in skip:
-                continue
-            
-            # remove ## prefix for a bert subtoken
-            if t.startswith("##"):
-                text += t[2:]
-            
-            # apply space before a dash
-            elif t == '-':
-                text += ' -'
-            
-            # avoid space between decimal points
-            elif t in '.,' and tokens[i-1].isdigit():
-                text += t
-                
-                try: 
-                    if tokens[i+1].isdigit():
-                        text += tokens[i+1]
-                        skip.append(i+1)
-                except:
-                    pass
-            
-            # avoid trailing space for other types of punctuation
-            elif t in '!"#$%&\\\'()*+,./:;<=>?@[\\]^_`{|}~':
-                text += t
-            
-            # avoid space after ' for sS possessive modifiers
-            elif len(text) > 0 and text[-1] == "'" and t in "sS":
-                text += t
-
-            else:
-                text += ("", " ")[text != ""] + t
-        return text
+        print([t.encode('utf-8') for t in tokens])
+        print(space_map)
+        assert len(tokens) == len(space_map), f"{len(tokens)} tokens and {len(space_map)} space terms"
+        detokenized = ""
+        for idx, tok in enumerate(tokens):
+            detokenized += tok[2:] if tok.startswith('##') else tok
+            if space_map[idx] == 1:
+                detokenized += " "
+        return detokenized
     
     
     def _predict(self, example):
@@ -313,7 +318,8 @@ class NERCoref(object):
             for cluster in example["predicted_clusters"]:
                 i, j = cluster[0] # indices of first mention
                 first_mention = example['sentences'][0][i:j+1]
-                fm_str = self._bert_detokenize(first_mention)
+                space_map = example['space_map'][i:j+1]
+                fm_str = self._bert_detokenize(first_mention, space_map)
                 
                 # remove possession modifier
                 if "'" in first_mention:
@@ -419,6 +425,7 @@ class NERCoref(object):
             
             # Coreference Prediction
             jsonline = self._create_jsonline(para_tokens)
+            jsonline["space_map"] = self._get_space_map(para, para_tokens)
             example = self._predict(jsonline)
             
             # Resolution
@@ -427,7 +434,8 @@ class NERCoref(object):
             for cluster in example["predicted_clusters"]:
                 i, j = cluster[0] # indices of first mention
                 first_mention = example['sentences'][0][i:j+1]
-                fm_str = self._bert_detokenize(first_mention)
+                fm_space_map = example['space_map'][i:j+1]
+                fm_str = self._bert_detokenize(first_mention, fm_space_map)
                 
                 # remove possession modifier
                 if "'" in first_mention:
@@ -459,38 +467,48 @@ class NERCoref(object):
 
             # replace all mentions with their first mentions
             para_resolved = list()
+            spaces_resolved = list()
             prev_i, prev_j = 0, 0
             
             for (i, j), fm in sorted(corefs.items()):
                 if markers:
                     fm = ['*'] + fm + ['*']
+                    fm_space_map = [0] + fm_space_map + [0]
                     
                 # check intersection: resolution within resolution
                 if i > prev_i and i < prev_j and j > prev_i and j < prev_j:
                     # get last resolve
                     delta = prev_j - prev_i + 1
                     last_resolve = para_resolved[-delta:]
+                    last_space_map = spaces_resolved[-delta:]
                     para_resolved[-delta:] = last_resolve[0:i-prev_i-1] \
                                              + fm \
                                              + last_resolve[j-prev_i+1:]
+                    spaces_resolved[-delta:] = last_space_map[0:i-prev_i-1] \
+                                               + fm_space_map \
+                                               + last_space_map[j-prev_i+1:]
                 else:
-                    para_resolved.extend(para_tokens[prev_j: i-1])
+                    para_resolved.extend(para_tokens[prev_j:i-1])
+                    spaces_resolved.extend(example['space_map'][prev_j:i-1])
                     para_resolved.extend(fm)
+                    spaces_resolved.extend(fm_space_map)
                 
                 prev_i, prev_j = i, j
             
             # add the remaining tokens to resolved
             para_resolved.extend(para_tokens[prev_j:])
+            spaces_resolved.extend(example['space_map'][prev_j:])
             
             # add paragraph to resolved
-            para_resolved = self._bert_detokenize(para_resolved)
+            para_resolved = self._bert_detokenize(para_resolved, spaces_resolved)
             resolved.append(para_resolved)
             
             # for debugging
-            print("------------------------------------------")
+            print("++++++++++++++++++++++++++++++++++++++++++")
             print(para.encode('utf-8'))
-            print(para_resolved.encode('utf-8'))
             print("------------------------------------------")
+            print(para_resolved.encode('utf-8'))
+            print("++++++++++++++++++++++++++++++++++++++++++")
         
         # return the resolved text
         return "\n".join(resolved)
@@ -618,9 +636,20 @@ class NERCoref(object):
 
 
 if __name__ == "__main__":
+#     import codecs
+#     with codecs.open("../../../temp.txt", encoding='utf-8') as f:
+#         text = f.read()
+
+#     resolver = NERCoref()
+#     resolved = resolver.para_resolve(text, markers=False)
+
+    resolver = NERCoref()
+
     import codecs
     with codecs.open("../../../temp.txt", encoding='utf-8') as f:
-        text = f.read()
+        text = f.readlines()
+        
     
-    resolver = NERCoref()
-    resolved = resolver.sent_resolve(text, markers=True)
+    
+
+      

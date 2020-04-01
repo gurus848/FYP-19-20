@@ -54,7 +54,7 @@ class TargetSentiment(object):
         return " ".join([str(doc[j]) for j in sorted(res)])
 
 
-    def predict(self, text, head, tail, return_dict=False):
+    def predict(self, text, head, tail, threshold=0.9, return_dict=False):
         """
             Predicts sentiment targeted on the text
             between e1 and e2.
@@ -75,16 +75,24 @@ class TargetSentiment(object):
                     Note: useful for debugging.
         """
         subtext = self._get_subtext(text, head, tail)
-        score = self.sent_analyzer(subtext)[0]
+        sentiment = self.sent_analyzer(subtext)[0]
+        
+        # threshold the sensitivity of the sentiment for more neutrality
+        if sentiment["score"] > threshold:
+            label = sentiment["label"]
+        else:
+            label = "NEUTRAL"
 
         if not return_dict:
-            return score["label"]
+            return label
 
         else:
             res = dict()
             res["subtext"] = self._get_subtext(text, head, tail)
             res["head"] = head
             res["tail"] = tail
-            res["label"] = score["label"]
-            res["score"] = score["score"]
+            res["label"] = label
+            res["score"] = sentiment["score"]
+            if sentiment["label"] == "NEGATIVE":
+                res["score"] *= -1
             return res
