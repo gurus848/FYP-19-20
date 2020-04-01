@@ -7,6 +7,20 @@
 <ol class="breadcrumb my-4">
   <li class="breadcrumb-item active">Perform Relation Extraction</li>
 </ol>
+
+<div class="row mt-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                Welcome
+            </div>
+            <div class="card-body">
+                Welcome to the Relation Extraction system! Please refer to the <a href="/help">help</a> page for instructions.
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row mt-3">
     <div class="col">
         <div class="card">
@@ -26,7 +40,9 @@
                     <button type="submit" class="btn btn-success">Upload</button>
                 </form>
                 <br/>
-                
+                <p>
+                    Columns expected in the relation support dataset CSV are 'sentence', 'head', 'tail' and 'reldescription'. You can download an example relation support dataset from the Help page.
+                </p>
             </div>
         </div>
     </div>
@@ -99,6 +115,11 @@
                     <button type="submit" class="btn btn-primary">Do Analysis</button>
                 </form>
                 <button id="cancel_analysis_button" class="btn btn-danger mt-3">Cancel Analysis</button>
+                <br/>
+                <br/>
+                <p>
+                    If the queries are uploaded in a CSV, the columns expected are 'sentence', 'head' and 'tail'. 'head' and 'tail' are optional. You can download sample queries from the help page.
+                </p>
             </div>
         </div>
     </div>

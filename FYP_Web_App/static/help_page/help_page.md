@@ -1,4 +1,4 @@
-# Welcome to the SYQ1 Web App!
+# Welcome to the SYQ1 FYP Web App!
 By: SENTHIL, Guru Sarjith and VALLAPURAM, Anish Krishna
 
 [Access Website Here](http://vml1wk184.cse.ust.hk:3389)
@@ -36,6 +36,22 @@ This web application can be used to do Few-Shot Relation Classification on a var
 * Previously computed results can be retrieved by going to the 'Saved Results' page and selecting the time at which the analysis was done and clicking 'Retrieve'.
 * SNA and vizualizations can be done on the 'SNA and Viz' page. This is a work in progress.
 
+## Relation Support Dataset
+
+* For the relation support dataset, it is best that you use approximately 5-way 5-shot, though other settings may also work well.
+* The sentences used for the relation support dataset should be from newspaper articles or similar sources for best results. For each of the relations, the sentences used should be varied in the way in which they depict the relation. For examples, look at the sample relation support dataset. 
+* The relations used should ideally be very different from each other, so that there is no ambiguity in the meaning of a relationship (ex. 'like' and 'love' are too similar).
+* In the dataset, the spelling and capitalization and punctuation of the heads and tails should be exactly that in the example sentence. Please ensure that there are no extra spaces at the end of the head/tail etc.
+* The column names in the relation support dataset should be exactly the same as that in the sample dataset. This rule applies to all datasets used throughout the app.
+
+## SNA and Viz
+
+* For the CSVs which are uploaded if necessary, the format should be the same as the CSVs which are downloaded from the Saved Results page.
+
+## Saved Results
+
+* When uploading a CSV to delete relation extraction records, the CSV should have a column called 'rel_id'. The relations with those ids will be deleted. The ids of the relations in the database can be found by clicking the 'Retrieve All Results' button to download all of the extracted relations in the database. 
+
 ## User Accounts
 
 * You can can create a user account and login to the app with it. When logged in only results associated with the logged in user can be retrieved. 
@@ -45,3 +61,8 @@ This web application can be used to do Few-Shot Relation Classification on a var
 ## Django Instructions
 
 * The first time you run the server after setting it up, run 'python manage.py makemigrations' and then 'python manage.py migrate'. To make the admin user run 'python manage.py createsuperuser'.
+
+## Admin Interface
+
+* You can access the admin interface at http://website_url/admin. In the admin interface you can directly manipulate the database if you want to. 
+

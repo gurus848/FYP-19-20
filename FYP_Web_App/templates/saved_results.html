@@ -8,6 +8,33 @@
     <li class="breadcrumb-item active">View Saved Results</li>
 </ol>
 
+
+
+<div class="card mt-3">
+    <div class="card-header">
+        Download All Analysis Results as CSV
+    </div>
+    <div class="card-body">
+        <button id="retrieve_all_result_button" class="btn btn-primary">Download All Results</button>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        Delete Selected Saved Results
+    </div>
+    <div class="card-body">
+        <p>
+            Will delete any extracted relation stored in the database that has ID equal to the IDs mentioned in the 'rel_id' column in the uploaded CSV. The IDs of the relations stored in the database can be found by downloading the saved analysis results above. 
+        </p>
+        <form method="post" id="del_csv_form">
+            {% csrf_token %}
+            {% include 'form_template.html' with form=form %}
+            <button type="submit" class="btn btn-danger">Delete Selected Results</button>
+        </form>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">
         Retrieve Analysis Results
@@ -19,6 +46,7 @@
             <option value="{{ i.id }}"> {{ i.val }} </option>
             {% endfor %}
         </select>
+        <br/>
         <br/>
         <button id="retrieve_result_button" class="btn btn-success">Retrieve</button>
     </div>

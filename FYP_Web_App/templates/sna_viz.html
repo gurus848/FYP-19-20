@@ -8,10 +8,75 @@
   <li class="breadcrumb-item active">Perform SNA and view Visualizations</li>
 </ol>
 
-<h3>Node-Link Graph of all Entities and Relationships</h3>
-<button id="gen_node_link_graph" class="btn btn-primary">Generate Graph</button>
-</br>
-<div id="node_link_viz">
+<h1>Select Data</h1>
+
+<div class="card mt-3">
+    <div class="card-header">Select Dataset to Use
+    </div>
+    <div class="card-body">
+        <form id="upload_csv_form">
+          <input type="radio" id="db" name="dataset_selection" value="db" checked="checked">
+          <label for="db">All data in Database</label><br>
+          <input type="radio" id="uploaded" name="dataset_selection" value="uploaded">
+          <label for="uploaded">Upload Predicted Relation CSV File: </label>
+            <input type="file" id="rel_csv_file" name="rel_csv_file"> <br/>
+            <input type="radio" id="specific_timestamp" name="dataset_selection" value="specific_timestamp">
+        <label class="mt-3" for="timestamp_selector">Choose timestamp of retrieved results to use:</label>
+        <select id="timestamp_selector">
+            {% for i in timestamps %}
+            <option value="{{ i.id }}"> {{ i.val }} </option>
+            {% endfor %}
+        </select>
+    </form>
+        <br/>
+        <p>
+            If the relations are specified in a CSV, then the columns expected are 'Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment' and 'Confidence'. You can use a dataset downloaded from the Saved Results page.
+        </p>
+    </div>
+</div>
+
+<h1 class="mt-3">SNA</h1>
+
+<div class="card mt-3">
+<div class="card-header">TODO</div>
+<div class="card-body">
+TODO
+    </div>
+</div>
+
+<h1 class="mt-3">Visualizations</h1>
+
+<div class="card mt-3">
+    <div class="card-header">1. Node-Link Graph of all Entities and Relationships</div>
+    <div class="card-body">
+        <button id="gen_node_link_graph" class="btn btn-primary">Generate Graph</button>
+        <br/>
+        <div id="node_link_viz">
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">2. Relationships shown through Hierarchichal Edge Bundling</div>
+    <div class="card-body">
+        <button id="gen_edg_bundling" class="btn btn-primary">Generate Visualization</button>
+        <br/>
+        <div id="edg_bundle_viz">
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                Errors
+            </div>
+            <div class="card-body" id="errors_div">
+                <p id="error_here_yet" class="text-muted"> Nothing here yet </p>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
