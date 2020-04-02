@@ -36,28 +36,23 @@ def report_connectedness(G, save_img_path=None):
     """
     # aggregrate connectedness metrics
     is_connected = components.is_connected(G)
-    
-    if is_connected:
-        return True
-    
-    else:
-        # get the connected components if the graph is disconnected
-        connected_components = components.connected_components(G)
-    
-        # save the disconnected components visualisation if the path given
-        if save_img_path:
-            colors = np.linspace(0, 1, len(connected_components))
-            com_color_map = dict()
-            for idx, com in enumerate(connected_components):
-                for node in com:
-                    com_color_map[node] = colors[idx]
+    # get the connected components
+    connected_components = components.connected_components(G)
 
-            labels=nx.draw_networkx_labels(G,pos=pos)
-            nx.draw(G, pos, node_color=list(com_color_map.values()))
-            plt.savefig(save_img_path, format="PNG")
+    # save the disconnected components visualisation if the path given
+    if save_img_path:
+        colors = np.linspace(0, 1, len(connected_components))
+        com_color_map = dict()
+        for idx, com in enumerate(connected_components):
+            for node in com:
+                com_color_map[node] = colors[idx]
+
+        labels=nx.draw_networkx_labels(G,pos=pos)
+        nx.draw(G, pos, node_color=list(com_color_map.values()))
+        plt.savefig(save_img_path, format="PNG")
     
-        return (False, connected_components)
-    
+    return (is_connected, connected_components)
+
     
 def top_nodes(G, k=3):
     """
@@ -101,47 +96,6 @@ def top_nodes(G, k=3):
     res_dict["degree"] = list(zip(*res[0]))[0]
     res_dict["betweenness"] = list(zip(*res[1]))[0]
     res_dict["closeness"] = list(zip(*res[2]))[0]
-    return res_dict
-
-
-def top_edges(G, k=3):
-    """
-        Returns the top k edges for various
-        centrality measures: betweenness and
-        information flow.
-        
-        Args:
-            G (nx.Graph): graph for which the 
-                top nodes must be determined.
-            
-            k (int): number of top edges to return.
-                if set to -ve, all the edges will be
-                returned.
-            
-        Returns:
-            res_dict (dict): dictionary of each centrality
-                measure with list of top k edges in that 
-                measure as values to the dictionary.
-    """
-    # number of all pair shortest paths that pass through each edge
-    edge_btw_dict = centrality.edge_betweenness_centrality(G)
-    # ability for information flow for each edge
-    edge_cur_dict = centrality.edge_current_flow_betweenness_centrality(G)
-    
-    # sort by nodes by each centrality measure
-    top_k_btw_edges = sorted(edge_btw_dict.items(), key = lambda x: x[1])
-    top_k_cur_edges = sorted(edge_cur_dict.items(), key = lambda x: x[1])
-    
-    # pick the top k edges
-    if k > 0:
-        res = (top_k_btw_edges[-k:], top_k_cur_edges[-k:])
-    else:
-        res = (top_k_btw_edges[::-1], top_k_cur_edges[::-1])
-    
-    # format and return the top nodes for each centrality 
-    res_dict = dict()
-    res_dict["edge_betweeness"] = list(zip(*res[0]))[0]
-    res_dict["edge_information_flow"] = list(zip(*res[1]))[0]
     return res_dict
 
 
@@ -330,3 +284,46 @@ def hierarchal_clustering(G, save_img_path=None):
         plt.savefig(save_img_path, format='PNG')
         
     return communities
+
+
+def summarise_nodes(relG):
+    """
+        Creates summaries for all nodes
+        in a given graph with the following
+        attributes:
+        1. degree
+        2. neighbours
+        3. top relation types
+        
+        Args:
+            relG (nx.Graph): graph for which
+                the summary must be created.
+                
+            Note: the edges in relG must have
+            'relation' edge attribute referring
+            to the relation type.
+        
+        Returns:
+            summaries (dict): dictionary of nodes
+                with the string summaries as values.
+    """
+    summaries = dict()
+    for n in relG.nodes:
+        # determine the key info
+        neighbors = list(relG.neighbors(n))
+        rels_of_node = dict()
+        for i in neighbors:
+            if relG[n][i]['relation'] not in rels_of_node.keys():
+                rels_of_node[relG[n][i]['relation']] = [i]
+            else:
+                rels_of_node[relG[n][i]['relation']].append(i)
+        
+        # create summary
+        summaries[n] = f"degree: {len(neighbors)}\n"
+        if len(neighbors):
+            summaries[n] += f"Relations: \n"
+            for k, v in rels_of_node.items():
+                v_str = ", ".join([str(j) for j in v])
+                summaries[n] += f"'{k}' ({len(v)}) - {v_str}\n"
+        
+    return summaries
