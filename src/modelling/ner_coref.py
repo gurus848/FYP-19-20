@@ -114,6 +114,7 @@ class NERCoref(object):
         print("=== Initialisation Done ===")
         print("===========================")
     
+    
     def _get_space_map(self, text, tokens):
         """
             Provides a flat list of 0's and 1's for whether
@@ -143,7 +144,8 @@ class NERCoref(object):
                 spaces.append(1)
             else:
                 spaces.append(0)
-
+                
+        spaces = [-1] + spaces + [-1]
         return spaces
         
     
@@ -188,17 +190,21 @@ class NERCoref(object):
         return [0] + sentence_map + [i]
     
 
-    def _create_jsonline(self, tokens):
+    def _create_jsonline(self, text):
         """
             Returns jsonline format which is inputtable
             to the Coreference Resolution model
 
             Args:
-                tokens (list): list of bert tokens, len(tokens) <= 512
+                text (str): text to be run the 
+                    Coreference Resolution Model.
+                
+                Note: text must be result in more than 512 BERT tokens.
 
             Returns:
                 data (dict): jsonline-style dictionary with relevant preprocessing
         """
+        tokens = self.tokenizer.tokenize(text)
         # check no. of tokens
         assert len(tokens) <= 512, "Input exceeds maximum number of tokens"
         data = dict()
@@ -209,6 +215,7 @@ class NERCoref(object):
         data['speakers'] = [['[SPL]'] + list(map(lambda x: ""*len(x), tokens)) + ['[SPL]']]
         data['sentence_map'] = self._get_sentence_map(tokens)
         data['subtoken_map'] = self._get_subtoken_map(tokens)
+        data['space_map'] = self._get_space_map(text, tokens)
         return data
 
     
@@ -222,14 +229,27 @@ class NERCoref(object):
             Returns:
                 detokenized (str): the merged text from tokens. 
         """
-        print([t.encode('utf-8') for t in tokens])
-        print(space_map)
-        assert len(tokens) == len(space_map), f"{len(tokens)} tokens and {len(space_map)} space terms"
+        # error handling
+        if len(tokens) != len(space_map):
+            toks_utf = [t.encode('utf-8') for t in tokens]
+            print(list(zip(toks_utf[:len(space_map)], space_map)))
+            assert len(tokens) == len(space_map), f"{len(tokens)} tokens and {len(space_map)} spaces"
+        
+        # detokenisation
         detokenized = ""
-        for idx, tok in enumerate(tokens):
+        for idx, tok in enumerate(tokens[:-1]):
+            # don't consider [CLS] and [SEP] during detokenisation
+            if space_map[idx] == -1:
+                continue
+            
+            # add the text
             detokenized += tok[2:] if tok.startswith('##') else tok
-            if space_map[idx] == 1:
+            
+            # add the space
+            if space_map[idx]:
                 detokenized += " "
+        
+        # return detokenized text
         return detokenized
     
     
@@ -263,7 +283,100 @@ class NERCoref(object):
         example["top_spans"] = list(zip((int(i) for i in top_span_starts), 
                                         (int(i) for i in top_span_ends)))
         return example
+    
+    
+    def _resolve(self, para, global_mentions, markers=False):
+        """
+            Performs Coreference Resolution for a given text.
+            
+            Args:
+                text (str): The document to be resolved.
+                
+                global_mentions (LazyStringSet): to match the
+                    resolved entities in the current document
+                    to the given global mentions. 
+                    
+                markers (bool): if set, the resolved spans
+                    in text will be quoted using '*'.
+                    For debugging purposes only.
+                
+            Returns:
+                resolved(str): the resolved text.
+        """
 
+        # Coreference Prediction
+        jsonline = self._create_jsonline(para)
+        example = self._predict(jsonline)
+
+        # Resolution
+        # store all coreferences
+        corefs = dict()
+        for cluster in example["predicted_clusters"]:
+            i, j = cluster[0] # indices of first mention
+            first_mention = example['sentences'][0][i:j+1]
+            # take one less for customising last token's spacing
+            fm_space_map = example['space_map'][i:j]
+            # fm_str = self._bert_detokenize(first_mention, fm_space_map)
+
+            # check for global coreference: inter paragraph. 
+            # (Inefficent from detokenizer calls)
+#             gm = global_mentions.get(fm_str)
+#             if gm:
+#                 first_mention = self.tokenizer.tokenize(gm)
+#             else:
+#                 global_mentions.put(fm_str)
+
+            # store other mentions indices by first mention
+            for (i, j) in cluster:
+                corefs[(i, j)] = (first_mention, fm_space_map)
+
+        # replace all mentions with their first mentions
+        para_resolved = list()
+        spaces_resolved = list()
+        prev_i, prev_j = 0, 0
+
+        for (i, j), (fm, spaces) in sorted(corefs.items()):
+            fm_space_map = [2 if s == 1 else 0 for s in spaces]
+            # add the space of the last token in replaced text
+            fm_space_map.append(example['space_map'][j])
+
+            if markers:
+                fm = ['*'] + fm + ['*']
+                fm_space_map = [0] + fm_space_map + [1]
+
+            # check intersection: resolution within resolution
+            if i > prev_i and i < prev_j and j > prev_i and j < prev_j:
+                # get last resolve
+                delta = prev_j - prev_i + 1
+                last_resolve = para_resolved[-delta:]
+                last_space_map = spaces_resolved[-delta:]
+                para_resolved[-delta:] = last_resolve[0:i-prev_i-1] \
+                                         + fm \
+                                         + last_resolve[j-prev_i+1:]
+                spaces_resolved[-delta:] = last_space_map[0:i-prev_i-1] \
+                                           + fm_space_map \
+                                           + last_space_map[j-prev_i+1:]
+            else:
+                if prev_j == 0:
+                    para_resolved.extend(example['sentences'][0][prev_j:i])
+                    spaces_resolved.extend(example['space_map'][prev_j:i])
+                else:
+                    para_resolved.extend(example['sentences'][0][prev_j+1:i])
+                    spaces_resolved.extend(example['space_map'][prev_j+1:i])
+                
+                para_resolved.extend(fm)
+                spaces_resolved.extend(fm_space_map)  
+
+                prev_i, prev_j = i, j
+            
+        # add the remaining tokens to resolved
+        para_resolved.extend(example['sentences'][0][prev_j+1:])
+        spaces_resolved.extend(example['space_map'][prev_j+1:])
+
+        # add paragraph to resolved
+        resolved = self._bert_detokenize(para_resolved, spaces_resolved)            
+        return resolved
+    
 
     def sent_resolve(self, text, overlap=1, markers=False):
         """
@@ -304,92 +417,15 @@ class NERCoref(object):
         global_mentions = LazyStringSet() 
         
         for idx, sent in enumerate(sentences):
-            # paragraph as BERT Tokens
-            sent_tokens = self.tokenizer.tokenize(sent)
-            para_tokens = reduce(concat, resolved[-overlap:] + [sent_tokens])
-            print(" ".join(para_tokens).encode('utf-8'))
+            sent = sent.strip()
+            para = " ".join(resolved[-overlap:] + [sent])
             # Coreference Prediction
-            jsonline = self._create_jsonline(para_tokens)
-            example = self._predict(jsonline)
+            para_resolved = self._resolve(para, global_mentions, markers=markers)
             
-            # Resolution
-            # store all coreferences
-            corefs = dict()
-            for cluster in example["predicted_clusters"]:
-                i, j = cluster[0] # indices of first mention
-                first_mention = example['sentences'][0][i:j+1]
-                space_map = example['space_map'][i:j+1]
-                fm_str = self._bert_detokenize(first_mention, space_map)
-                
-                # remove possession modifier
-                if "'" in first_mention:
-                    if "s" in first_mention:
-                        first_mention.remove("'")
-                        first_mention.remove("s")
-
-                    if "S" in first_mention:
-                        first_mention.remove("'")
-                        first_mention.remove("S")
-                
-                # check for global coreference: inter paragraph. 
-                # (Inefficent from detokenizer calls)
-                gm = global_mentions.get(fm_str)
-                if gm:
-                    first_mention = self.tokenizer.tokenize(gm)
-                else:
-                    global_mentions.put(fm_str)
-                
-                # TODO: try to reduce longer first mentions to two words
-#                 first_mention = self.bert_detokenize(first_mention)
-#                 first_mention = first_mention.translate(string.punctuation)
-#                 ent_reduced = self.reduce_entity(first_mention)
-#                 first_mention = self.tokenizer.tokenize(ent_reduced)
-
-                # store other mentions indices for the new sentence by first mention
-                for (i, j) in cluster:
-                    if example["sentence_map"][i] == overlap:
-                        corefs[(i, j)] = first_mention
-
-            # replace all mentions with their first mentions
-            sent_resolved = list()
-            
-            # start with tokens of only the last sentence
-            x = example["sentence_map"].index(overlap)
-            prev_i, prev_j = x, x
-            
-            for (i, j), fm in sorted(corefs.items()):
-                if markers:
-                    fm = ['*'] + fm + ['*']
-                    
-                # check intersection: resolution within resolution
-                if i > prev_i and i < prev_j and j > prev_i and j < prev_j:
-                    # get last resolve
-                    delta = prev_j - prev_i + 1
-                    last_resolve = sent_resolved[-delta:]
-                    sent_resolved[-delta:] = last_resolve[0:i-prev_i-1] \
-                                             + fm \
-                                             + last_resolve[j-prev_i+1:]
-                else:
-                    sent_resolved.extend(para_tokens[prev_j: i-1])
-                    sent_resolved.extend(fm)
-                
-                prev_i, prev_j = i, j
-            
-            # add the remaining tokens to resolved
-            sent_resolved.extend(para_tokens[prev_j:])
-            
-            # add sentences tokens to resolved
-            resolved.append(sent_resolved)
-            
-            # for debugging
-            print("------------------------------------------")
-            print(sent.encode('utf-8'))
-            print(self._bert_detokenize(sent_resolved).encode('utf-8'))
-            print("------------------------------------------")
+            # append to resolved
+            resolved.append(para_resolved.split(".")[-2].strip() + ".")
         
-        # return the resolved text
-        resolved = reduce(concat, resolved)
-        return self._bert_detokenize(resolved)
+        return resolved
     
     
     def para_resolve(self, text, markers=False):
@@ -421,95 +457,10 @@ class NERCoref(object):
         
         for para in paragraphs:
             # paragraph as BERT Tokens
-            para_tokens = self.tokenizer.tokenize(para)
-            
-            # Coreference Prediction
-            jsonline = self._create_jsonline(para_tokens)
-            jsonline["space_map"] = self._get_space_map(para, para_tokens)
-            example = self._predict(jsonline)
-            
-            # Resolution
-            # store all coreferences
-            corefs = dict()
-            for cluster in example["predicted_clusters"]:
-                i, j = cluster[0] # indices of first mention
-                first_mention = example['sentences'][0][i:j+1]
-                fm_space_map = example['space_map'][i:j+1]
-                fm_str = self._bert_detokenize(first_mention, fm_space_map)
-                
-                # remove possession modifier
-                if "'" in first_mention:
-                    if "s" in first_mention:
-                        first_mention.remove("'")
-                        first_mention.remove("s")
-
-                    if "S" in first_mention:
-                        first_mention.remove("'")
-                        first_mention.remove("S")
-                
-                # check for global coreference: inter paragraph. 
-                # (Inefficent from detokenizer calls)
-                gm = global_mentions.get(fm_str)
-                if gm:
-                    first_mention = self.tokenizer.tokenize(gm)
-                else:
-                    global_mentions.put(fm_str)
-                
-                # try to reduce longer first mentions to two words
-#                 first_mention = self.bert_detokenize(first_mention)
-#                 first_mention = first_mention.translate(string.punctuation)
-#                 ent_reduced = self.reduce_entity(first_mention)
-#                 first_mention = self.tokenizer.tokenize(ent_reduced)
-
-                # store other mentions indices by first mention
-                for (i, j) in cluster:
-                    corefs[(i, j)] = first_mention
-
-            # replace all mentions with their first mentions
-            para_resolved = list()
-            spaces_resolved = list()
-            prev_i, prev_j = 0, 0
-            
-            for (i, j), fm in sorted(corefs.items()):
-                if markers:
-                    fm = ['*'] + fm + ['*']
-                    fm_space_map = [0] + fm_space_map + [0]
-                    
-                # check intersection: resolution within resolution
-                if i > prev_i and i < prev_j and j > prev_i and j < prev_j:
-                    # get last resolve
-                    delta = prev_j - prev_i + 1
-                    last_resolve = para_resolved[-delta:]
-                    last_space_map = spaces_resolved[-delta:]
-                    para_resolved[-delta:] = last_resolve[0:i-prev_i-1] \
-                                             + fm \
-                                             + last_resolve[j-prev_i+1:]
-                    spaces_resolved[-delta:] = last_space_map[0:i-prev_i-1] \
-                                               + fm_space_map \
-                                               + last_space_map[j-prev_i+1:]
-                else:
-                    para_resolved.extend(para_tokens[prev_j:i-1])
-                    spaces_resolved.extend(example['space_map'][prev_j:i-1])
-                    para_resolved.extend(fm)
-                    spaces_resolved.extend(fm_space_map)
-                
-                prev_i, prev_j = i, j
-            
-            # add the remaining tokens to resolved
-            para_resolved.extend(para_tokens[prev_j:])
-            spaces_resolved.extend(example['space_map'][prev_j:])
-            
-            # add paragraph to resolved
-            para_resolved = self._bert_detokenize(para_resolved, spaces_resolved)
+            para = para.strip()
+            para_resolved = self._resolve(para, global_mentions, markers=markers)
             resolved.append(para_resolved)
             
-            # for debugging
-            print("++++++++++++++++++++++++++++++++++++++++++")
-            print(para.encode('utf-8'))
-            print("------------------------------------------")
-            print(para_resolved.encode('utf-8'))
-            print("++++++++++++++++++++++++++++++++++++++++++")
-        
         # return the resolved text
         return "\n".join(resolved)
     
@@ -636,20 +587,10 @@ class NERCoref(object):
 
 
 if __name__ == "__main__":
-#     import codecs
-#     with codecs.open("../../../temp.txt", encoding='utf-8') as f:
-#         text = f.read()
-
-#     resolver = NERCoref()
-#     resolved = resolver.para_resolve(text, markers=False)
-
-    resolver = NERCoref()
-
     import codecs
     with codecs.open("../../../temp.txt", encoding='utf-8') as f:
-        text = f.readlines()
-        
-    
-    
+        text = f.read()
 
-      
+    resolver = NERCoref()
+    resolved = resolver.para_resolve(text, markers=False)
+    print(resolved.encode('utf-8'))
