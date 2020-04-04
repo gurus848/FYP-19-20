@@ -526,7 +526,7 @@ class NERCoref(object):
                 if disable_types and ent.tag in disable_types:
                     continue
                 else:
-                    ents[idx].append(ent.text)
+                    ents[idx].append(ent.text.strip(string.punctuation))
         return ents
 
     
@@ -591,5 +591,5 @@ if __name__ == "__main__":
     text = "The Treasury secretary indicated that he and the Federal Reserve chair, Jerome H. Powell, would use all the tools at their disposal to allow that workers and businesses to subsist for the next few months."
 
     resolver = NERCoref()
-    queries = resolver.generate_queries(text)
-    print(queries)
+    ents = resolver.get_entities(text)
+    print(ents)

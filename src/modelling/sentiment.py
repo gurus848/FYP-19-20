@@ -96,3 +96,10 @@ class TargetSentiment(object):
             if sentiment["label"] == "NEGATIVE":
                 res["score"] *= -1
             return res
+
+
+if __name__ == "__main__":
+    ts = TargetSentiment()
+
+    text = "The proposal is different from one pitched on Thursday by Steven Mnuchin, the Treasury secretary, who said the administration wanted to send two waves of $1,000 checks to every American, one in April and one in May should the crisis persist."
+    print(ts.predict(text, "Steven Mnuchin", "American", threshold=0.95, return_dict=True))
