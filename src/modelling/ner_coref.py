@@ -518,10 +518,7 @@ class NERCoref(object):
         t = TextBlob(text)
         sentences = [str(s) for s in t.sentences]
         for idx, s in enumerate(sentences):
-            # improves NER prediction
-            sent = [" "+t if t in string.punctuation else t for t in s]
-            sent = "".join(sent)
-            sent = Sentence(sent)
+            sent = Sentence(s)
             self.ner_tagger.predict(sent)
 
             ents[idx] = list()
@@ -588,9 +585,11 @@ class NERCoref(object):
 
 if __name__ == "__main__":
     import codecs
-    with codecs.open("../../../temp.txt", encoding='utf-8') as f:
-        text = f.read()
+    # with codecs.open("../../../temp.txt", encoding='utf-8') as f:
+    #    text = f.read()
+	
+    text = "The Treasury secretary indicated that he and the Federal Reserve chair, Jerome H. Powell, would use all the tools at their disposal to allow that workers and businesses to subsist for the next few months."
 
     resolver = NERCoref()
-    resolved = resolver.para_resolve(text, markers=False)
-    print(resolved.encode('utf-8'))
+    queries = resolver.generate_queries(text)
+    print(queries)
