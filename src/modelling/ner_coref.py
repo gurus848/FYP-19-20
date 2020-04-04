@@ -526,7 +526,14 @@ class NERCoref(object):
                 if disable_types and ent.tag in disable_types:
                     continue
                 else:
-                    ents[idx].append(ent.text.strip(string.punctuation))
+                    ent_str, start, end = ent.text, ent.start_pos, ent.end_pos
+                    if ent_str[0] in string.punctuation:
+                        start += 1
+                        ent_str = ent_str[1:]
+                    if ent_str[-1] in string.punctuation:
+                        end -= 1
+                        ent_str = ent_str[:-1]
+                    ents[idx].append((ent_str, start, end))
         return ents
 
     
@@ -560,7 +567,10 @@ class NERCoref(object):
         ents = self.get_entities(resolved, disable_types=disable_types)
 
         # create queries using dataframe
-        queries = {'sentence': [], 'head': [], 'tail': []}
+        queries = {'sentence': [], 'head': [], 'tail': [], 
+                   'head_start': [], 'head_end': [],
+                   'tail_start': [], 'tail_end': []}
+
         t = TextBlob(resolved)
         sentences = [str(s) for s in t.sentences]
 
@@ -571,15 +581,34 @@ class NERCoref(object):
             if len(pairs) == 0:
                 continue
             
-            heads, tails = zip(*pairs)
-            queries['sentence'].extend( len(pairs)*[sentences[idx]] )
-            queries['head'].extend(heads)
-            queries['tail'].extend(tails)
+            # remove similar entity mention pairs            
+            pairs_cp = list()
+            for p in pairs:
+                try:
+                    x = p[0][0].index(p[1][0]) if len(p[0][0]) > len(p[1][0]) else p[1][0].index(p[0][0])
+                except:
+                    pairs_cp.append(p)
 
+            heads, tails = zip(*pairs)
+            h_ents, h_starts, h_ends = zip(*heads)
+            t_ents, t_starts, t_ends = zip(*tails)
+            queries['sentence'].extend( len(pairs)*[sentences[idx]] )
+            queries['head'].extend(h_ents)
+            queries['tail'].extend(t_ents)
+            queries['head_start'].extend(h_starts)
+            queries['head_end'].extend(h_ends)
+            queries['tail_start'].extend(t_starts)
+            queries['tail_end'].extend(t_ends)
+            
             if bidirectional:
                 queries['sentence'].extend( len(pairs)*[sentences[idx]] )
-                queries['head'].extend(tails)
-                queries['tail'].extend(heads)
+                queries['head'].extend(t_ents)
+                queries['tail'].extend(h_ents)
+                queries['head_start'].extend(t_starts)
+                queries['head_end'].extend(t_ends)
+                queries['tail_start'].extend(h_starts)
+                queries['tail_end'].extend(h_ends)
+        
         return queries
 
 
@@ -588,8 +617,7 @@ if __name__ == "__main__":
     # with codecs.open("../../../temp.txt", encoding='utf-8') as f:
     #    text = f.read()
 	
-    text = "The Treasury secretary indicated that he and the Federal Reserve chair, Jerome H. Powell, would use all the tools at their disposal to allow that workers and businesses to subsist for the next few months."
-
+    text = "We are beginning to review Senator McConnell's proposal, and on first reading, it is not at all pro-worker and instead puts corporations way ahead of workers,\" Speaker Nancy Pelosi and Senator Chuck Schumer of New York, the minority leader, said in a joint statement."
     resolver = NERCoref()
-    ents = resolver.get_entities(text)
-    print(ents)
+    queries = resolver.generate_queries(text)
+    print(queries)
