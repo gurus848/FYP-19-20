@@ -327,3 +327,75 @@ def summarise_nodes(relG):
                 summaries[n] += f"'{k}' ({len(v)}) - {v_str}\n"
         
     return summaries
+
+
+def summarise_communities(relG):
+    """
+        Creates summaries for all clusters
+        in a given graph with the following
+        attributes:
+        1. bridges - node with the highest betweeness
+        2. members
+        3. Closeness - how close the group (higher, closer)
+        4. relation counts in the cluster
+
+        Args:
+            relG (nx.Graph): graph for which
+                the summary must be created.
+
+            Note: the edges in relG must have
+            'relation' edge attribute referring
+            to the relation type.
+
+        Returns:
+            summaries (dict): dictionary of clusters
+                with the string summaries as values.
+    """
+    # get communities
+    communities = list(enumerate(detect_communities(relG)))
+    node_comm_dict = dict()
+    for i, c in communities:
+        for u in c:
+            node_comm_dict[u] = i
+    
+    # get bridges: nodes in clusters in highest betweenness centrality
+    node_btw_dict = centrality.betweenness_centrality(relG)
+    comm_bridge_dict = {i:(None, -1) for i in range(len(communities))}
+    for n, b in node_btw_dict.items():
+        c = node_comm_dict[n]
+        if b > comm_bridge_dict[c][1]:
+            comm_bridge_dict[c] = (n, b)
+
+    # get powers of clusters
+    comm_graph_dict = {i: nx.Graph() for i, c in communities}
+    for (u, v, r) in relG.edges.data('relation'):
+        uc, vc = node_comm_dict[u], node_comm_dict[v]
+        if uc == vc:
+            comm_graph_dict[uc].add_edge(u, v, relation=r)
+    
+    # get average closeness centrality
+    comm_avg_clo_dict = dict()
+    for i, G in comm_graph_dict.items():
+        node_clo_dict = centrality.closeness_centrality(G)
+        s, n = sum(list(node_clo_dict.values())), len(node_clo_dict)
+        comm_avg_clo_dict[i] = s / n
+        
+    # get relation counts for each cluster
+    rel_count_comm_dict = dict()
+    for i, c in comm_graph_dict.items():
+        u, v, r = list(zip(*c.edges.data('relation')))
+        rels, counts = np.unique(r, return_counts=True)
+        rel_count_comm_dict[i] = list(zip(rels, counts))
+    
+    # create string summary for each cluster 
+    summaries = dict()
+    for i, c in communities:
+        summaries[i] = f"Bridge: {comm_bridge_dict[i][0]}\n"
+        members = ", ".join([str(x) for x in c])
+        summaries[i] += f"Members: {members}\n"
+        closeness = np.around(comm_avg_clo_dict[i], decimals=4)
+        summaries[i] += f"Closeness: {closeness}\n"
+        rel_counts = ['\'' + r + '\'- ' + str(c) for r, c in rel_count_comm_dict[i]]
+        summaries[i] += "Relations:\n" + "\n".join(rel_counts)
+
+    return summaries

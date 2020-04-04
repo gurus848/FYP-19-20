@@ -589,7 +589,7 @@ class NERCoref(object):
                 except:
                     pairs_cp.append(p)
 
-            heads, tails = zip(*pairs)
+            heads, tails = zip(*pairs_cp)
             h_ents, h_starts, h_ends = zip(*heads)
             t_ents, t_starts, t_ends = zip(*tails)
             queries['sentence'].extend( len(pairs)*[sentences[idx]] )
@@ -620,4 +620,4 @@ if __name__ == "__main__":
     text = "We are beginning to review Senator McConnell's proposal, and on first reading, it is not at all pro-worker and instead puts corporations way ahead of workers,\" Speaker Nancy Pelosi and Senator Chuck Schumer of New York, the minority leader, said in a joint statement."
     resolver = NERCoref()
     queries = resolver.generate_queries(text)
-    print(queries)
+    print(list(zip(queries['head'], queries['tail'])))
