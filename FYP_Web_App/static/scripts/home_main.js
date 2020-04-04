@@ -82,7 +82,7 @@ $('#rel_sup_csv_form').on('submit', function(event){
             $('#rel_sup_dataset_info').empty();
             for(var i = 1; i <= json.rel_sup_datasets.length; i++){
                 $('#rel_sup_dataset_info').append('Dataset '+i.toString()+' - Supported Relations: '+json.rel_sup_datasets[i-1].sup_relations+',   '+json.rel_sup_datasets[i-1].nk_stat+'</br>');
-                $('#rel_sup_dataset_info').append('<button value="'+i.toString()+'" class="rel_sup_deletor btn btn-danger">Delete</button></br>')
+                $('#rel_sup_dataset_info').append('<button value="'+i.toString()+'" class="rel_sup_deletor btn btn-danger">Delete</button><button value="'+i.toString()+'" class="rel_sup_downloader btn btn-primary">Download</button></br>')
             }
             alert('Uploaded relation support CSV successfully!');
         },
@@ -349,6 +349,15 @@ $('#rel_sup_dataset_info').on('click', '.rel_sup_deletor', function(){
     console.log($(this).val());
     var link = document.createElement('a');
     link.href = "/del_rel_sup_csv?i="+$(this).val();
+    link.click();
+});
+
+//called when the button is clicked to download a relation support dataset
+$('#rel_sup_dataset_info').on('click', '.rel_sup_downloader', function(){
+    console.log($(this).val());
+    var link = document.createElement('a');
+    link.href = "/dwn_rel_sup_csv?i="+$(this).val();
+    link.download = "relation_support_dataset_"+$(this).val()+".csv";
     link.click();
 });
 

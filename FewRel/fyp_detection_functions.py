@@ -130,22 +130,22 @@ class Detector:
         tail_indices = None
         print(tokens, tokenized_head, tokenized_tail)
         for i in range(len(tokens)):
-            if tokens[i] in tokenized_head[0]:
+            if tokens[i] in tokenized_head[0] or tokenized_head[0] in tokens[i]:
                 broke = False
                 print(tokens[i:i+len(tokenized_head)], tokenized_head)
                 for k, j in zip(tokens[i:i+len(tokenized_head)], tokenized_head):
-                    if k not in j:
+                    if k not in j and j not in k:
                         broke = True
                         break
                 if not broke:
                     head_indices = list(range(i,i+len(tokenized_head)))
                     break
         for i in range(len(tokens)):
-            if tokens[i] in tokenized_tail[0]:
+            if tokens[i] in tokenized_tail[0] or tokenized_tail[0] in tokens[i]:
                 broke = False
                 print(tokens[i:i+len(tokenized_tail)], tokenized_tail)
                 for k, j in zip(tokens[i:i+len(tokenized_tail)], tokenized_tail):
-                    if k not in j:
+                    if k not in j and j not in k:
                         broke = True
                         break
                 if not broke:

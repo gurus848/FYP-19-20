@@ -57,6 +57,7 @@ This web application can be used to do Few-Shot Relation Classification on a var
 * You can can create a user account and login to the app with it. When logged in only results associated with the logged in user can be retrieved. 
 * The admin account has username 'admin' and password 'admin'. The django admin interface can be accessed when logged into this account at http://website_base/admin, with the correct website_base substituted.
 * The user can store some information about themselves in the 'My Account' page.
+* Only one user can use the system to run an analysis at once, due to the computational power required. 
 
 ## Django Instructions
 
