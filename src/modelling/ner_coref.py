@@ -592,7 +592,7 @@ class NERCoref(object):
             heads, tails = zip(*pairs_cp)
             h_ents, h_starts, h_ends = zip(*heads)
             t_ents, t_starts, t_ends = zip(*tails)
-            queries['sentence'].extend( len(pairs)*[sentences[idx]] )
+            queries['sentence'].extend( len(pairs_cp)*[sentences[idx]] )
             queries['head'].extend(h_ents)
             queries['tail'].extend(t_ents)
             queries['head_start'].extend(h_starts)
@@ -601,7 +601,7 @@ class NERCoref(object):
             queries['tail_end'].extend(t_ends)
             
             if bidirectional:
-                queries['sentence'].extend( len(pairs)*[sentences[idx]] )
+                queries['sentence'].extend( len(pairs_cp)*[sentences[idx]] )
                 queries['head'].extend(t_ents)
                 queries['tail'].extend(h_ents)
                 queries['head_start'].extend(t_starts)
@@ -620,4 +620,5 @@ if __name__ == "__main__":
     text = "We are beginning to review Senator McConnell's proposal, and on first reading, it is not at all pro-worker and instead puts corporations way ahead of workers,\" Speaker Nancy Pelosi and Senator Chuck Schumer of New York, the minority leader, said in a joint statement."
     resolver = NERCoref()
     queries = resolver.generate_queries(text)
-    print(list(zip(queries['head'], queries['tail'])))
+    [print(f"{k}: {len(v)}") for k, v in queries.items()]
+    # print(list(zip(queries['head'], queries['tail'])))
