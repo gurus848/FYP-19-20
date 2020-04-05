@@ -30,8 +30,9 @@
             <div class="card-body">
                 <div id="rel_sup_dataset_info">
                 {% for x in rel_sup_datasets %}
-                    <p id="sup_relations_p">Dataset {{ x.i }} - Supported Relations: {{ x.sup_relations }},   {{ x.nk_stat }}</p>
+                    <p id="sup_relations_p">Dataset {{ x.i }} -  Supported Relations: {{ x.sup_relations }},            {{ x.nk_stat }}</p>
                     <button value="{{ x.i }}" class="rel_sup_deletor btn btn-danger">Delete</button>
+                    <button value="{{ x.i }}" class="rel_sup_downloader btn btn-primary">Download</button>
                 {% endfor %}
                 </div>
                 <form method="post" id="rel_sup_csv_form">
@@ -118,7 +119,7 @@
                 <br/>
                 <br/>
                 <p>
-                    If the queries are uploaded in a CSV, the columns expected are 'sentence', 'head' and 'tail'. 'head' and 'tail' are optional. You can download sample queries from the help page.
+                    If the queries are uploaded in a CSV, the columns expected are 'sentence', 'head' and 'tail'. 'head' and 'tail' are optional, if you do not want to mention the head and tail the column names should not be included either. You can download sample queries from the help page.
                 </p>
             </div>
         </div>

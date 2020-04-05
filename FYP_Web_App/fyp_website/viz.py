@@ -3,13 +3,18 @@ from networkx.drawing.nx_agraph import graphviz_layout
 import networkx as nx
 from .models import ExtractedRelation, Source
 import pandas as pd
+import os
+import sys
+proj_path = os.path.abspath(os.path.dirname(__file__)).split("FewRel")[0]
+sys.path.insert(1, proj_path + 'src/modelling/')
+import soc_net
 # visualization related stuff will be done in this file
 
 class VizualizationManager:
     @staticmethod
-    def make_node_link(request, dataset_type):
+    def construct_nx_graph(request, dataset_type):
         """
-            Constructs a node link graph as a html file using plotly and the info in the database.
+            Constructs a networkx multigraph from the data and returns it
         """
         unique_ents = set()
         edges = []
@@ -56,6 +61,16 @@ class VizualizationManager:
 
         for e in edges:
             G.add_edge(e[0], e[1], typ=e[2])
+            
+        return G
+    
+    @staticmethod
+    def make_node_link(request, dataset_type):
+        """
+            Constructs a node link graph as a html file using plotly and the info in the database.
+        """
+        
+        G = VizualizationManager.construct_nx_graph(request, dataset_type)
 
         pos = graphviz_layout(G, prog='neato')   
         traces = []
@@ -126,4 +141,9 @@ class VizualizationManager:
                         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
         fig.write_html("static/node_link_viz.html")
-        
+    
+    @staticmethod
+    def get_SNA_metrics(G):
+        """
+        """
+        pass

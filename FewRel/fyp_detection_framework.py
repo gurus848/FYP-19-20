@@ -28,7 +28,6 @@ class DataLoader:
         for i in range(len(tokens)):
             if tokens[i] in tokenized_head[0]:
                 broke = False
-                print(tokens[i:i+len(tokenized_head)], tokenized_head)
                 for k, j in zip(tokens[i:i+len(tokenized_head)], tokenized_head):
                     if k not in j:
                         broke = True
@@ -37,9 +36,10 @@ class DataLoader:
                     head_indices = list(range(i,i+len(tokenized_head)))
                     break
         for i in range(len(tokens)):
+            if head_indices is not None and i in head_indices:
+                continue
             if tokens[i] in tokenized_tail[0]:
                 broke = False
-                print(tokens[i:i+len(tokenized_head)], tokenized_head)
                 for k, j in zip(tokens[i:i+len(tokenized_tail)], tokenized_tail):
                     if k not in j:
                         broke = True
@@ -86,6 +86,8 @@ class DataLoader:
                     head_indices = list(range(i,i+len(tokenized_head)))
                     break
             for i in range(len(tokens)):
+                if head_indices is not None and i in head_indices:
+                    continue
                 if tokens[i] == tokenized_tail[0] and tokens[i:i+len(tokenized_tail)] == tokenized_tail:
                     tail_indices = list(range(i,i+len(tokenized_tail)))
                     break
@@ -217,6 +219,8 @@ class DetectionFramework:
         else:
             q = DataLoader.load_query_csv(path)
             text = "\n".join([i['sentence'] for i in q])
+            if self.ner_coref is None:
+                self.ner_coref = NERCoref()
             results = self.ner_coref.generate_queries(text)
             self.queries = []
             for i in range(len(results['sentence'])):
@@ -262,6 +266,7 @@ class DetectionFramework:
         text = unidecode(text)
         results = self.ner_coref.generate_queries(text)
         self.queries = []
+        print(len(results['sentence']), len(results['head']), len(results['tail']))
         for i in range(len(results['sentence'])):
             self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
             

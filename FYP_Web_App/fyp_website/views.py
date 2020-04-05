@@ -24,7 +24,6 @@ def home(request):
     """
         Renders the home page of the app.
     """
-    _get_sup_relations()
     rel_sup_csv_form = RelationSupportCSVDatasetForm()
     queries_csv_form = QueriesCSVDatasetForm()
     text_file_form = TextDatasetForm()
@@ -35,7 +34,8 @@ def home(request):
     for i in results:
         data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6], 'dataset':i[7]})
     proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
-    ckpts = [f for f in os.listdir(proj_path + "FewRel/checkpoint") if '.pth.tar' in f]
+    ckpts = [f for f in os.listdir(proj_path + "FewRel/checkpoint") if '.pth.tar' in f][::-1]
+    _get_sup_relations(request.user)
     rel_sup_datasets = []
     for i in range(len(nk_stat)):
         rel_sup_datasets.append({'i':i+1, 'sup_relations': sup_relations[i], 'nk_stat': nk_stat[i]})
@@ -87,10 +87,10 @@ def help_page(request):
 
 sup_relations = []
 nk_stat = []
-def _get_sup_relations():
+def _get_sup_relations(user):
     global sup_relations, nk_stat
     rel_support_datasets = os.listdir("temp/relation_support_datasets")  #gets a list of the relation support datasets
-    rel_support_datasets = sorted([i for i in rel_support_datasets if '.csv' in i])
+    rel_support_datasets = sorted([i for i in rel_support_datasets if '.csv' in i and user.username in i])
     sup_relations = []
     nk_stat = []
     for f in rel_support_datasets:
@@ -100,7 +100,6 @@ def _get_sup_relations():
         K = df[df['reldescription'] == df['reldescription'].loc[0]].shape[0]
         
         nk_stat.append("{}-way {}-shot".format(N, K))
-_get_sup_relations()
 
 def handle_uploaded_file(f, fname):
     """
@@ -116,8 +115,9 @@ def rel_sup_csv_upload(request):
     """
     if request.method == "POST":
         relation_support_dataset = request.FILES['relation_support_dataset']
-        handle_uploaded_file(relation_support_dataset, 'temp/relation_support_datasets/relation_support_dataset_{}.csv'.format(len(nk_stat) + 1))
-        _get_sup_relations()
+        _get_sup_relations(request.user)
+        handle_uploaded_file(relation_support_dataset, 'temp/relation_support_datasets/relation_support_dataset_{}_{}.csv'.format(len(nk_stat) + 1, request.user.username))
+        _get_sup_relations(request.user)
         rel_sup_datasets = []
         for i in range(len(nk_stat)):
             rel_sup_datasets.append({'i':i+1, 'sup_relations': sup_relations[i], 'nk_stat': nk_stat[i]})
@@ -137,7 +137,7 @@ def del_rel_sup_csv(request):
     """
     if request.method == "GET":
         dataset_index = int(request.GET.get("i"))
-        os.remove("temp/relation_support_datasets/relation_support_dataset_{}.csv".format(dataset_index))
+        os.remove("temp/relation_support_datasets/relation_support_dataset_{}_{}.csv".format(dataset_index, request.user.username))
         if len(nk_stat) > dataset_index:
             for i in range(dataset_index+1, len(nk_stat)+1):
                 os.rename("temp/relation_support_datasets/relation_support_dataset_{}.csv".format(i), "temp/relation_support_datasets/relation_support_dataset_{}.csv".format(i-1))
@@ -580,3 +580,12 @@ def gen_edg_bundle(request):
         Handles requests to generate a hierarchical edge bundling visualizations.
     """
     pass
+
+
+def dwn_rel_sup_csv(request):
+    """
+        Handles requests to download that specific relation support dataset.
+    """
+    i = int(request.GET.get('i'))
+    
+    return FileResponse(open('temp/relation_support_datasets/relation_support_dataset_{}_{}.csv'.format(i, request.user.username),'rb'))
