@@ -578,9 +578,6 @@ class NERCoref(object):
         for idx, ent_list in ents.items():
             pairs = list(combinations(set(ent_list), 2))
             
-            if len(pairs) == 0:
-                continue
-            
             # remove similar entity mention pairs            
             pairs_cp = list()
             for p in pairs:
@@ -588,6 +585,9 @@ class NERCoref(object):
                     x = p[0][0].index(p[1][0]) if len(p[0][0]) > len(p[1][0]) else p[1][0].index(p[0][0])
                 except:
                     pairs_cp.append(p)
+
+            if len(pairs_cp) == 0:
+                continue
 
             heads, tails = zip(*pairs_cp)
             h_ents, h_starts, h_ends = zip(*heads)
@@ -614,11 +614,9 @@ class NERCoref(object):
 
 if __name__ == "__main__":
     import codecs
-    # with codecs.open("../../../temp.txt", encoding='utf-8') as f:
-    #    text = f.read()
+    with codecs.open("../../../temp.txt", encoding='utf-8') as f:
+        text = f.read()
 	
-    text = "We are beginning to review Senator McConnell's proposal, and on first reading, it is not at all pro-worker and instead puts corporations way ahead of workers,\" Speaker Nancy Pelosi and Senator Chuck Schumer of New York, the minority leader, said in a joint statement."
     resolver = NERCoref()
     queries = resolver.generate_queries(text)
     [print(f"{k}: {len(v)}") for k, v in queries.items()]
-    # print(list(zip(queries['head'], queries['tail'])))
