@@ -4,6 +4,7 @@
 """
 
 import spacy
+from string import punctuation
 from transformers import pipeline
 
 
@@ -21,7 +22,15 @@ class TargetSentiment(object):
     def __init__(self):
         self.dep_parser = spacy.load("en_core_web_sm", disable=['ner', 'tagger'])
         self.sent_analyzer = pipeline("sentiment-analysis")
+ 
 
+    def _count_space_punct(self, text):
+        c = text.count(" ")
+        for i in text:
+            if i in punctuation:
+                c += 1
+        return c
+		
 
     def _get_subtext(self, text, head, tail):
         """
@@ -42,13 +51,14 @@ class TargetSentiment(object):
         res = set()
         inds = list() 
         for ent in (head, tail):
-            n = len((ent.split(" ")))
+            n = self._count_space_punct(ent)
             for i in range(len(doc)):
-                if str(doc[i:i+n]) == ent:
-                    inds.extend([i, i+n-1])
-                    res.update([j for j in range(i, i+n)])
-                    res.update([anc.i for anc in doc[i+n-1].ancestors])
+                if str(doc[i:i+n+1]) == ent:
+                    inds.extend([i, i+n])
+                    res.update([j for j in range(i, i+n+1)])
+                    res.update([anc.i for anc in doc[i+n].ancestors])
                     break
+        
         min_, max_ = min(inds), max(inds)
         res = [j for j in sorted(list(res)) if j >= min_ and j <= max_]
         return " ".join([str(doc[j]) for j in sorted(res)])
@@ -100,6 +110,6 @@ class TargetSentiment(object):
 
 if __name__ == "__main__":
     ts = TargetSentiment()
-
-    text = "The proposal is different from one pitched on Thursday by Steven Mnuchin, the Treasury secretary, who said the administration wanted to send two waves of $1,000 checks to every American, one in April and one in May should the crisis persist."
-    print(ts.predict(text, "Steven Mnuchin", "American", threshold=0.95, return_dict=True))
+    
+    text = "One of Mueller's questions was: \"What communication did you have with Michael Cohen, Felix Sater, and others, including foreign nationals, about Russian real estate developments during the campaign?"
+    print(ts.predict(text, "Mueller's", "Michael Cohen, Felix Sater", threshold=0.95, return_dict=True))
