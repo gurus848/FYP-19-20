@@ -11,6 +11,7 @@ sys.path.insert(1, proj_path + 'src/modelling/')
 from ner_coref import NERCoref
 from unidecode import unidecode
 from sentiment import TargetSentiment
+import gc
 
 class DataLoader:
     """
@@ -200,12 +201,12 @@ class DetectionFramework:
         self.support = []
         self.queries = []
     
-    def load_support_files(self, path):
+    def load_support_files(self, path, username):
         """
         Loads the relation support data which is mentioned.
         """
         self.support = []
-        for f in [i for i in os.listdir(path) if 'csv' in i]:
+        for f in [i for i in os.listdir(path) if 'csv' in i and username in i]:
             self.support.append(DataLoader.load_relation_support_csv("{}/{}".format(path, f)))
         
     def load_queries_csv(self, path):
@@ -293,12 +294,7 @@ class DetectionFramework:
         self.queries = DataLoader.load_query_with_head_tail_csv(path)
         
     
-    def _calculate_conf(self, logits, order, pred):
-        exp = list(float(i) for i in logits[0][0])
-        exp = [math.exp(i) for i in exp]
-        if pred == 'NA':
-            return exp[-1]*100/sum(exp)
-        return exp[order.index(pred)]*100/sum(exp)
+    
     
     def detect(self, rt_results=None, cancel_flag=[False]):
         """
@@ -324,15 +320,14 @@ class DetectionFramework:
                 #the head and tail are predefined in the query, so just those are used.
 
                 result = self.detector.run_detection_algorithm(q, sup)
-                self.detector.print_result(*(result[:-1]))
+                self.detector.print_result(result['sentence'], result['head'], result['tail'], result['pred_relation'])
 
                 sent_pred = self.sentiment.predict(q['sentence'], q['head'], q['tail'])
-                result.append(sent_pred)
-                order = list(r['name'] for r in sup)
-                result.append(int(self._calculate_conf(result[-2], order, result[3])))
-                result.append(i+1)  #the index of the relation support dataset which is used
+                result['sent'] = sent_pred
+                result['rel_sup_ind'] = (i+1)  #the index of the relation support dataset which is used
                 results.append(result)
                 if rt_results is not None:
                     rt_results.append(result)
+                gc.collect()
 
         return results

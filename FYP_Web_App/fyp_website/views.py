@@ -11,7 +11,7 @@ sys.path.insert(1, proj_path + 'FewRel')  #so that the relation extraction frame
 from fyp_detection_framework import DetectionFramework
 from threading import Thread
 from .models import ExtractedRelation, Source
-from .viz import VizualizationManager
+from .sna_viz import SNAVizualizationManager
 import pandas as pd
 from django.contrib.auth.decorators import login_required
 from django.utils.html import mark_safe
@@ -32,7 +32,7 @@ def home(request):
     html_files_form = HTMLFilesForm()
     data = []
     for i in results:
-        data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6], 'dataset':i[7]})
+        data.append({'sentence':i['sentence'], 'head':i['head'], 'tail':i['tail'], 'pred_relation':i['pred_relation'], 'pred_sentiment':i['sent'], 'conf':i['conf'], 'dataset':i['rel_sup_ind']})
     proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
     ckpts = [f for f in os.listdir(proj_path + "FewRel/checkpoint") if '.pth.tar' in f][::-1]
     _get_sup_relations(request.user)
@@ -215,7 +215,8 @@ results = []  #list of the results which have been generated so far
 cancel_flag=[False]  #flag used to indicate whether the analysis should be cancelled or not
 errors = []  #list of the errors whcih have been generated
 error_i = 0  #index from which new errors can be sent
-d = DetectionFramework(ckpt_path=proj_path + "FewRel/checkpoint/NA-predict-model.pth.tar") #the detection framework
+# d = DetectionFramework(ckpt_path=proj_path + "FewRel/checkpoint/NA-predict-model.pth.tar") #the detection framework
+d = None
 def do_analysis(ckpt, queries_type, request):
     """
         Runs the actual analysis in a different thread
@@ -231,10 +232,10 @@ def do_analysis(ckpt, queries_type, request):
             d = DetectionFramework(ckpt_path=ckpt)
             
         d.clear_support_queries()
-        if  len([i for i in os.listdir("temp/relation_support_datasets") if 'csv' in i]) == 0:
+        if  len([i for i in os.listdir("temp/relation_support_datasets") if 'csv' in i and request.user.username in i]) == 0:
             raise ValueError("Please upload relation support dataset!")
             
-        d.load_support_files("temp/relation_support_datasets")
+        d.load_support_files("temp/relation_support_datasets", request.user.username)
         if queries_type == "csv_option":
             if not os.path.exists("temp/queries.csv"):
                 raise ValueError("Please upload query CSV dataset!")
@@ -274,7 +275,7 @@ def do_analysis(ckpt, queries_type, request):
         s = Source(source=src, user=request.user)
         s.save()
         for r in results:
-            er = ExtractedRelation(sentence=r[0],head=r[1],tail=r[2],pred_relation=r[3],sentiment=r[5],conf=r[6],ckpt=ckpt, source=s)
+            er = ExtractedRelation(sentence=r['sentence'],head=r['head'],tail=r['tail'],pred_relation=r['pred_relation'],sentiment=r['sent'],conf=r['conf'],ckpt=ckpt, source=s)
             er.save()
     except Exception as e:
         print(len(str(e)))
@@ -327,7 +328,7 @@ def get_analysis_results(request):
         client_index_till = int(request.GET.get('cur_index_reached', 0))
         new_data = []
         for i in results[client_index_till:]:
-            new_data.append({'sentence':i[0], 'head':i[1], 'tail':i[2], 'pred_relation':i[3], 'pred_sentiment':i[5], 'conf':i[6], 'dataset':i[7]})
+            new_data.append({'sentence':i['sentence'], 'head':i['head'], 'tail':i['tail'], 'pred_relation':i['pred_relation'], 'pred_sentiment':i['sent'], 'conf':i['conf'], 'dataset':i['rel_sup_ind']})
         status = 'analysis_in_progress'
         if not currently_analyzing:
             status = 'finished_analysis'
@@ -358,7 +359,7 @@ def dwn_analysis_csv(request):
     """
     data = []
     for i in results:
-        data.append((i[0], i[1], i[2], i[3], i[5], i[6]))
+        data.append((i['sentence'], i['head'], i['tail'], i['pred_relation'], i['sent'], i['conf']))
     df = pd.DataFrame(data, columns=['Sentence', 'Head', 'Tail', 'Predicted Relation', 'Predicted Sentiment', 'Confidence'])
     df.to_csv("temp/analysis_results.csv", index=False)
     
@@ -468,7 +469,7 @@ def _gen_node_link_plotly_graph(request, dataset_type):
         if node_link_gen_status == "generating":
             return
         node_link_gen_status = "generating"
-        VizualizationManager.make_node_link(request, dataset_type)
+        SNAVizualizationManager.make_node_link(request, dataset_type)
         node_link_gen_status = "generated"
     except Exception as e:
         node_link_gen_status = "error"
@@ -589,3 +590,18 @@ def dwn_rel_sup_csv(request):
     i = int(request.GET.get('i'))
     
     return FileResponse(open('temp/relation_support_datasets/relation_support_dataset_{}_{}.csv'.format(i, request.user.username),'rb'))
+
+def get_sna_results(request):
+    """
+        Performs SNA on the selected data and returns the results for the AJAX request.
+    """
+    dataset_type = request.POST.get('dataset')
+    G, rels = SNAVizualizationManager.construct_nx_graph(request, dataset_type)
+    result_dict = SNAVizualizationManager.get_SNA_metrics(G)
+    print(result_dict)
+    
+    
+    return HttpResponse(
+            json.dumps({"status": "success"}),
+            content_type="application/json"
+        )
