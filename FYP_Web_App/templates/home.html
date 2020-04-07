@@ -35,6 +35,7 @@
                     <button value="{{ x.i }}" class="rel_sup_downloader btn btn-primary">Download</button>
                 {% endfor %}
                 </div>
+                <br/>
                 <form method="post" id="rel_sup_csv_form">
                     {% csrf_token %}
                     {% include 'form_template.html' with form=rel_sup_csv_form %}

@@ -5,50 +5,16 @@ from models.pair import Pair
 import os
 import torch
 import spacy
-import neuralcoref
-from itertools import combinations
+# import neuralcoref
+# from itertools import combinations
+import gc
+import math
 
 class Detector:
-    #RUNS USING GPU if available
+    #RUNS USING GPU if available and pytoch has CUDA support
     
-    #sample relation data. this format should be followed for both queries and example relations (support)
-    example_relation_data = [
-        {'name':'love',
-        'examples':[
-            {'sentence':'Meow loves Mo', 'head':'Meow', 'tail':'Mo'},
-            {'sentence':'Tom is in love with Jull', 'head':'Tom', 'tail':'Jull'}
-        ]},
-        {'name':'hate',
-        'examples':[
-            {'sentence':'Trump hates the Mooch', 'head':'Trump', 'tail':'Mooch'},
-            {'sentence':'Ivanka and Jared dislike each other intensely', 'head':'Ivanka', 'tail':'Jared'}
-        ]},
-        {'name':'spouse',
-        'examples':[
-            {'sentence':'Trump is married to Ivanka', 'head':'Trump', 'tail':'Ivanka'},
-            {'sentence':"Bill went out with his wife Jill on saturday", 'head':'Bill', 'tail':'Jill'}
-        ]},
-            {'name':'insult',
-        'examples':[
-            {'sentence':'The President said that Michael Cohen is a rat', 'head':'The President', 'tail':'Michael'},
-            {'sentence':'Meow and Tom threw jabs at each other', 'head':'Meow', 'tail':'Tom'}
-        ]},
-            {'name':'capital',
-        'examples':[
-            {'sentence':'Austin is the capital of Texas', 'head':'Austin', 'tail':'Texas'},
-            {'sentence':"the capital of China is located in Beijing", 'head':'Beijing', 'tail':"China"}
-        ]}
 
-    ]
-
-    queries = [{
-        'sentence':'Cohen and Fluffy are very loving to each other','head':'Cohen','tail':'Fluffy'
-    },
-    {
-        'sentence':"""The US's capital is Washington""",'head':'Washington','tail':'US'
-    }]
-
-    def __init__(self, chpt_path="checkpoint/pair-bert-train_wiki-val_wiki-5-1.pth.tar", max_length=128):
+    def __init__(self, chpt_path, max_length=128):
         """
             Initializer
         """
@@ -64,8 +30,8 @@ class Detector:
             self.model = self.model.cuda()
         self.model.eval()
 
-        self.nlp_coref = spacy.load("en_core_web_sm")
-        neuralcoref.add_to_pipe(self.nlp_coref)
+#         self.nlp_coref = spacy.load("en_core_web_sm")
+#         neuralcoref.add_to_pipe(self.nlp_coref)
         self.nlp_no_coref = spacy.load("en_core_web_sm")
         self.load_model()
         
@@ -99,11 +65,11 @@ class Detector:
                 continue
             own_state[name].copy_(param)
             
-    def spacy_tokenize_coref(self,sentence):
-        """
-            Tokenizes the sentence using spacy
-        """
-        return list(map(str, self.nlp_coref(sentence)))
+#     def spacy_tokenize_coref(self,sentence):
+#         """
+#             Tokenizes the sentence using spacy
+#         """
+#         return list(map(str, self.nlp_coref(sentence)))
     
     def spacy_tokenize_no_coref(self,sentence):
         """
@@ -128,11 +94,9 @@ class Detector:
         """
         head_indices = None
         tail_indices = None
-        print(tokens, tokenized_head, tokenized_tail)
         for i in range(len(tokens)):
             if tokens[i] in tokenized_head[0] or tokenized_head[0] in tokens[i]:
                 broke = False
-                print(tokens[i:i+len(tokenized_head)], tokenized_head)
                 for k, j in zip(tokens[i:i+len(tokenized_head)], tokenized_head):
                     if k not in j and j not in k:
                         broke = True
@@ -143,7 +107,6 @@ class Detector:
         for i in range(len(tokens)):
             if tokens[i] in tokenized_tail[0] or tokenized_tail[0] in tokens[i]:
                 broke = False
-                print(tokens[i:i+len(tokenized_tail)], tokenized_tail)
                 for k, j in zip(tokens[i:i+len(tokenized_tail)], tokenized_tail):
                     if k not in j and j not in k:
                         broke = True
@@ -152,6 +115,13 @@ class Detector:
                     tail_indices = list(range(i,i+len(tokenized_tail)))
                     break
         return head_indices, tail_indices
+    
+    def _calculate_conf(self, logits, order, pred):
+        exp = list(float(i) for i in logits[0][0])
+        exp = [math.exp(i) for i in exp]
+        if pred == 'NA':
+            return exp[-1]*100/sum(exp)
+        return exp[order.index(pred)]*100/sum(exp)
     
     def run_detection_algorithm(self, query, relation_data):
         """
@@ -236,7 +206,10 @@ class Detector:
             fusion_set['mask'] = fusion_set['mask'].cuda()
 
         logits, pred = self.model(fusion_set, N, K, Q)
-        return [query['sentence'], head, tail, relation_data[pred.item()]['name'] if pred.item() < len(relation_data) else 'NA', logits]  #returns (sentence, head, tail, prediction relation name)
+        gc.collect()
+        order = list(r['name'] for r in relation_data)
+        pred_relation = relation_data[pred.item()]['name'] if pred.item() < len(relation_data) else 'NA'
+        return {'sentence': query['sentence'], 'head': head, 'tail': tail, 'pred_relation': pred_relation, 'conf': int(self._calculate_conf(logits, order, pred_relation))}  #returns (sentence, head, tail, prediction relation name)
         
     def print_result(self,sentence, head, tail, prediction):
         """
@@ -244,14 +217,3 @@ class Detector:
         """
         print('Sentence: \"{}\", head: \"{}\", tail: \"{}\", prediction: {}'.format(sentence, head, tail, prediction))
         
-    
-    def run_on_sample_data(self):
-        """
-            Runs the model on the sample data which is hardcoded in this file.
-        """
-        for q in self.queries:
-            # for some reason the python combinations function returns the head the tail consistently backwards
-            for tail, head in self.get_head_tail_pairs(q['sentence']):  #iterating through all possible combinations of 2 named entities
-                q['head'] = head
-                q['tail'] = tail
-                self.print_result(*(self.run_detection_algorithm(q, self.example_relation_data)[:-1]))

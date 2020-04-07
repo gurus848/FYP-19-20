@@ -10,7 +10,7 @@ sys.path.insert(1, proj_path + 'src/modelling/')
 import soc_net
 # visualization related stuff will be done in this file
 
-class VizualizationManager:
+class SNAVizualizationManager:
     @staticmethod
     def construct_nx_graph(request, dataset_type):
         """
@@ -60,9 +60,9 @@ class VizualizationManager:
             G.add_node(i, node_type='Entity')
 
         for e in edges:
-            G.add_edge(e[0], e[1], typ=e[2])
+            G.add_edge(e[0], e[1], typ=e[2], relation=e[2])
             
-        return G
+        return G, rels
     
     @staticmethod
     def make_node_link(request, dataset_type):
@@ -70,7 +70,7 @@ class VizualizationManager:
             Constructs a node link graph as a html file using plotly and the info in the database.
         """
         
-        G = VizualizationManager.construct_nx_graph(request, dataset_type)
+        G, rels = SNAVizualizationManager.construct_nx_graph(request, dataset_type)
 
         pos = graphviz_layout(G, prog='neato')   
         traces = []
@@ -145,5 +145,22 @@ class VizualizationManager:
     @staticmethod
     def get_SNA_metrics(G):
         """
+            Gets the SNA Metrics and then returns them to be displayed in the Web App.
         """
-        pass
+        return_dict = {}
+        is_connected, connected_components = soc_net.report_connectedness(G)   #finding whether the graph is connected or not
+        return_dict['is_connected'] = is_connected
+        
+        top_nodes_dict = soc_net.top_nodes(G)
+        return_dict['top_nodes_dict'] = top_nodes_dict
+        
+        top_edges_dict = soc_net.top_edges(G)
+        return_dict['top_edges_dict'] = top_edges_dict
+        
+        communities = soc_net.detect_communities(G)
+        return_dict['communities'] = communities
+        
+        node_summaries = soc_net.summarise_nodes(G)
+        return_dict['node_summaries'] = node_summaries
+        
+        return return_dict

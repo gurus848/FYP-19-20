@@ -170,7 +170,7 @@ function gen_edge_bundling() {
     $.ajax({
         url : "gen_edg_bundle/", // the endpoint
         type : "POST", // http method
-        data : {"dataset": $('input[name="dataset_selection"]:checked').val()},
+        data : {"dataset": $('input[name="dataset_selection"]:checked').val(), 'source_id': $("#timestamp_selector").val()},
  
         // handle a successful response
         success : function(json) {
@@ -185,7 +185,33 @@ function gen_edge_bundling() {
     });
 }
 
+//starts the SNA process
+function do_sna(){
+    $.ajax({
+        url : "get_sna_results/", // the endpoint
+        type : "POST", // http method
+        data : {"dataset": $('input[name="dataset_selection"]:checked').val(), 'source_id': $("#timestamp_selector").val()},
+ 
+        // handle a successful response
+        success : function(json) {
+            console.log(json); // log the returned json to the console
+            alert("SNA finished!")
+            //TODO
+        },
+
+        // handle a non-successful response
+        error : function(xhr,errmsg,err) {
+            console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+        }
+    });
+}
+
 //called when the generate edge bundling button is clicked
 $('#gen_edg_bundling').click(function() {
     upload_dataset_csv_then_run(gen_edge_bundling);
+});
+
+//called when the do SNA button is clicked
+$('#do_sna').click(function() {
+    upload_dataset_csv_then_run(do_sna);
 });
