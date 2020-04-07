@@ -12,7 +12,7 @@ import numpy as np
 import networkx as nx
 from itertools import chain, combinations
 from scipy.cluster.hierarchy import dendrogram
-from networkx.algorithms import community, centrality
+from networkx.algorithms import community, centrality, components
 
 
 def report_connectedness(G, save_img_path=None):
