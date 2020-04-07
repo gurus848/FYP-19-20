@@ -132,7 +132,7 @@ def top_edges(G, k=3):
     
     # format and return the top nodes for each centrality 
     res_dict = dict()
-    res_dict["edge_betweeness"] = res
+    res_dict["edge_betweeness"] = list(zip(*res))[0]
     return res_dict
 
 
