@@ -315,12 +315,12 @@ def summarise_nodes(relG):
                 rels_of_node[relG[n][i][0]['relation']].append(i)
         
         # create summary
-        summaries[n] = f"degree: {len(neighbors)}\n"
+        summaries[n] = f"degree: {len(neighbors)}\n<br>"
         if len(neighbors):
-            summaries[n] += f"Relations: \n"
+            summaries[n] += f"Relations: \n<br>"
             for k, v in rels_of_node.items():
                 v_str = ", ".join([str(j) for j in v])
-                summaries[n] += f"'{k}' ({len(v)}) - {v_str}\n"
+                summaries[n] += f"'{k}' ({len(v)}) - {v_str}\n<br>"
         
     return summaries
 

@@ -591,6 +591,34 @@ def dwn_rel_sup_csv(request):
     
     return FileResponse(open('temp/relation_support_datasets/relation_support_dataset_{}_{}.csv'.format(i, request.user.username),'rb'))
 
+def gen_SNA_html(result_dict):
+    """
+        Generates a HTML string which is sent back to the client with the results of the SNA.
+    """
+    html = "</br>"
+    
+    html += "<p>Is the graph connected? <b>{}</b></p>".format(result_dict['is_connected'])
+    html += "<p>Top Nodes by Degree:</p>"
+    for ind, i in enumerate(result_dict['top_nodes_dict']['degree']):
+        html += "<p>  {}. <b>{}</b></p>".format(ind + 1, i)
+    html += "<p>Top Nodes by Betweenness:</p>"
+    for ind, i in enumerate(result_dict['top_nodes_dict']['betweenness']):
+        html += "<p>  {}. <b>{}</b></p>".format(ind + 1, i)
+    html += "<p>Top Nodes by Closeness:</p>"
+    for ind, i in enumerate(result_dict['top_nodes_dict']['closeness']):
+        html += "<p>  {}. <b>{}</b></p>".format(ind + 1, i)
+        
+    html += "<p>Top Edges by Edge-Betweenness:</p>"
+    for ind, (i, j) in enumerate(result_dict['top_edges_dict']['edge_betweeness']):
+        html += "<p>  {}. <b>{} -> {}</b></p>".format(ind + 1, i, j)
+    
+    html += "Detected Communities: "
+    for ind, i in enumerate(result_dict['communities']):
+        html += "<p>  {}. {}</p>".format(ind + 1, (", ".join(i)))
+    
+    html += "</br>"
+    return html
+
 def get_sna_results(request):
     """
         Performs SNA on the selected data and returns the results for the AJAX request.
@@ -600,8 +628,9 @@ def get_sna_results(request):
     result_dict = SNAVizualizationManager.get_SNA_metrics(G)
     print(result_dict)
     
+    result_dict = {'sna_html':gen_SNA_html(result_dict)}
     
     return HttpResponse(
-            json.dumps({"status": "success"}),
+            json.dumps({"status": "success", 'result_dict':result_dict}),
             content_type="application/json"
         )

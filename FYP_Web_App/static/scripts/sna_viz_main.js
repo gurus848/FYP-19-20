@@ -65,7 +65,7 @@ function check_node_link_results() {
             if(json.status == "finished"){
                 do_check_request = false;
                 $.get("../static/node_link_viz.html", function( my_var ) {
-                    $("#node_link_viz").html(my_var)
+                    $("#node_link_viz").html('<br/>'+my_var)
                 }, 'html');
             }else if(json.status == "error"){
                 do_check_request = false;
@@ -196,7 +196,10 @@ function do_sna(){
         success : function(json) {
             console.log(json); // log the returned json to the console
             alert("SNA finished!")
-            //TODO
+            result_dict = json.result_dict
+            console.log(result_dict)
+            $('#sna_metrics_results').html(result_dict.sna_html)
+            
         },
 
         // handle a non-successful response
