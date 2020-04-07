@@ -102,8 +102,7 @@ def top_nodes(G, k=3):
 def top_edges(G, k=3):
     """
         Returns the top k edges for various
-        centrality measures: betweenness and
-        information flow.
+        centrality measures: betweenness.
         
         Args:
             G (nx.Graph): graph for which the 
@@ -120,23 +119,19 @@ def top_edges(G, k=3):
     """
     # number of all pair shortest paths that pass through each edge
     edge_btw_dict = centrality.edge_betweenness_centrality(G)
-    # ability for information flow for each edge
-    edge_cur_dict = centrality.edge_current_flow_betweenness_centrality(G)
     
     # sort by nodes by each centrality measure
     top_k_btw_edges = sorted(edge_btw_dict.items(), key = lambda x: x[1])
-    top_k_cur_edges = sorted(edge_cur_dict.items(), key = lambda x: x[1])
     
     # pick the top k edges
     if k > 0:
-        res = (top_k_btw_edges[-k:], top_k_cur_edges[-k:])
+        res = top_k_btw_edges[-k:]
     else:
-        res = (top_k_btw_edges[::-1], top_k_cur_edges[::-1])
+        res = top_k_btw_edges[::-1]
     
     # format and return the top nodes for each centrality 
     res_dict = dict()
-    res_dict["edge_betweeness"] = list(zip(*res[0]))[0]
-    res_dict["edge_information_flow"] = list(zip(*res[1]))[0]
+    res_dict["edge_betweeness"] = res
     return res_dict
 
 
