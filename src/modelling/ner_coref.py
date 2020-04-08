@@ -425,7 +425,7 @@ class NERCoref(object):
             # append to resolved
             resolved.append(para_resolved.split(".")[-2].strip() + ".")
         
-        return resolved
+        return " ".join(resolved)
     
     
     def para_resolve(self, text, markers=False):
@@ -537,7 +537,7 @@ class NERCoref(object):
         return ents
 
     
-    def generate_queries(self, text, bidirectional=False, disable_types=None):
+    def generate_queries(self, text, use_sent=True, overlap=1, bidirectional=False, disable_types=None):
         """
             Generates a pandas.DataFrame of Relation Extraction
             queries.
@@ -561,7 +561,10 @@ class NERCoref(object):
                     columns = ['sentence', 'head', 'tail'].
         """
         # resolve
-        resolved = self.para_resolve(text)
+        if use_sent:
+        	resolved = self.sent_resolve(text, overlap=overlap)
+        else:
+            resolved = self.para_resolve(text)
 
         # get entities
         ents = self.get_entities(resolved, disable_types=disable_types)
