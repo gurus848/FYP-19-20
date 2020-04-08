@@ -24,14 +24,15 @@
         Delete Selected Saved Results
     </div>
     <div class="card-body">
-        <p>
-            Will delete any extracted relation stored in the database that has ID equal to the IDs mentioned in the 'rel_id' column in the uploaded CSV. The IDs of the relations stored in the database can be found by downloading the saved analysis results above. 
-        </p>
         <form method="post" id="del_csv_form">
             {% csrf_token %}
             {% include 'form_template.html' with form=form %}
             <button type="submit" class="btn btn-danger">Delete Selected Results</button>
         </form>
+        <br/>
+        <p>
+            Will delete any extracted relation stored in the database that has ID equal to the IDs mentioned in the 'rel_id' column in the uploaded CSV. The IDs of the relations stored in the database can be found by downloading the saved analysis results above. 
+        </p>
     </div>
 </div>
 
@@ -41,7 +42,7 @@
     </div>
     <div class="card-body">
         <label class="mt-3" for="timestamp_selector">Choose timestamp of results to retrieve:</label>
-        <select id="timestamp_selector">
+        <select id="timestamp_selector" style="width:800px;">
             {% for i in timestamps %}
             <option value="{{ i.id }}"> {{ i.val }} </option>
             {% endfor %}

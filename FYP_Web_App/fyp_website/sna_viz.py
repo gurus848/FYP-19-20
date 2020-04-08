@@ -121,13 +121,15 @@ class SNAVizualizationManager:
                 symbol='circle'),
             name='Entity')
 
+        node_summaries = soc_net.summarise_nodes(G)
+        
 
         for node in G.nodes():
             x, y = pos[node]
 
             entity_nodes['x'] += tuple([x])
             entity_nodes['y'] += tuple([y])
-            entity_nodes['text'] += tuple([node])
+            entity_nodes['text'] += tuple(["<b>"+node + "</b><br>" + node_summaries[node]])
 
 
         traces.append(entity_nodes)
@@ -159,8 +161,5 @@ class SNAVizualizationManager:
         
         communities = soc_net.detect_communities(G)
         return_dict['communities'] = communities
-        
-        node_summaries = soc_net.summarise_nodes(G)
-        return_dict['node_summaries'] = node_summaries
         
         return return_dict
