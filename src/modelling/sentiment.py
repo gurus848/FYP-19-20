@@ -27,7 +27,7 @@ class TargetSentiment(object):
     def _count_space_punct(self, text):
         c = text.count(" ")
         for i in text:
-            if i in punctuation:
+            if i in "!\"#$%&.\'()*+,-/:;<=>?@[\\]^_`{|}~":
                 c += 1
         return c
 		
@@ -53,7 +53,7 @@ class TargetSentiment(object):
         for ent in (head, tail):
             n = self._count_space_punct(ent)
             for i in range(len(doc)):
-                if str(doc[i:i+n+1]) == ent:
+                if str(doc[i:i+n]) == ent:
                     inds.extend([i, i+n])
                     res.update([j for j in range(i, i+n+1)])
                     res.update([anc.i for anc in doc[i+n].ancestors])
@@ -111,5 +111,5 @@ class TargetSentiment(object):
 if __name__ == "__main__":
     ts = TargetSentiment()
     
-    text = "One of Mueller's questions was: \"What communication did you have with Michael Cohen, Felix Sater, and others, including foreign nationals, about Russian real estate developments during the campaign?"
-    print(ts.predict(text, "Mueller's", "Michael Cohen, Felix Sater", threshold=0.95, return_dict=True))
+    text = "Ms. Warren is seeking do better than her third-place standing in Iowa, helping create momentum for later states and supplant Mr. Buttigieg as the candidate pitching “unity” to a frightened Democratic electorate."
+    print(ts.predict(text, "Ms. Warren", "Mr. Buttigieg", threshold=0.95, return_dict=True))

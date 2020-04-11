@@ -89,7 +89,7 @@ class NERCoref(object):
 
         # load spacy dependency parser
         print(indent + " loading Spacy Dependency Parser ===" + indent)
-        self.dep_parser = spacy.load("en_core_web_sm", disable=['ner', 'tagger'])
+        self.dep_parser = spacy.load("en_core_web_sm", disable=['ner'])
         
         # initialise coref environment
         print(indent + " Initialising coref environment " + indent)
@@ -312,10 +312,29 @@ class NERCoref(object):
         # store all coreferences
         corefs = dict()
         for cluster in example["predicted_clusters"]:
-            i, j = cluster[0] # indices of first mention
+            # pick the largest mention in the first five mentions as the first mention
+            i, j = cluster[0]
+            for m, n in cluster[:5]:
+                if n-m > j-i:
+                    i, j = m, n
+            
             first_mention = example['sentences'][0][i:j+1]
             # take one less for customising last token's spacing
             fm_space_map = example['space_map'][i:j]
+            
+            # Appositional modifier case
+            if "," in first_mention:
+                appos_str = self._bert_detokenize(first_mention, fm_space_map + [0])
+                appos_mod = self.dep_parser(appos_str)
+
+                for am in appos_mod:
+                    if am.dep_ == "appos":
+                        fm_str = f"{am.text} ({am.head.text})" if am.pos_ == "PROPN" else f"{am.head.text} ({am.text})"
+                        fm_tok = self.tokenizer.tokenize(fm_str)
+                        fm_space_map = self._get_space_map(fm_str, fm_tok)[1:-2]
+                        first_mention = fm_tok
+                        break
+                    
             # fm_str = self._bert_detokenize(first_mention, fm_space_map)
 
             # check for global coreference: inter paragraph. 
@@ -419,13 +438,14 @@ class NERCoref(object):
         for idx, sent in enumerate(sentences):
             sent = sent.strip()
             para = " ".join(resolved[-overlap:] + [sent])
+
             # Coreference Prediction
             para_resolved = self._resolve(para, global_mentions, markers=markers)
             
             # append to resolved
             resolved.append(para_resolved.split(".")[-2].strip() + ".")
         
-        return " ".join(resolved)
+        return "\n".join(resolved)
     
     
     def para_resolve(self, text, markers=False):
@@ -497,7 +517,7 @@ class NERCoref(object):
                     if r in range(ent.start_pos, ent.end_pos):
                         ent_reduced = ent.text
         return ent_reduced
-                    
+    
 
     def get_entities(self, text, disable_types=None, ent_span=False):
         """
@@ -517,23 +537,52 @@ class NERCoref(object):
         ents = dict()
         t = TextBlob(text)
         sentences = [str(s) for s in t.sentences]
+        
+        # dependency parsing on sentences
+        docs = [self.dep_parser(s) for s in sentences]
+        
         for idx, s in enumerate(sentences):
             sent = Sentence(s)
             self.ner_tagger.predict(sent)
-
+            # noun chunks to replace genetives
+            noun_chunks = list(docs[idx].noun_chunks)
+            ents_cache = ""
+            
             ents[idx] = list()
             for ent in sent.get_spans('ner'):
+                # check entity type
                 if disable_types and ent.tag in disable_types:
                     continue
-                else:
-                    ent_str, start, end = ent.text, ent.start_pos, ent.end_pos
-                    if ent_str[0] in string.punctuation:
-                        start += 1
-                        ent_str = ent_str[1:]
-                    if ent_str[-1] in string.punctuation:
-                        end -= 1
-                        ent_str = ent_str[:-1]
-                    ents[idx].append((ent_str, start, end))
+                
+                # avoid substring entities and appositional modifiers
+                ent_span = docs[idx].char_span(ent.start_pos, ent.end_pos)
+                if ent.text in ents_cache or str(ent_span.root) in ents_cache:
+                    continue
+                
+                # Flair Interface
+                ent_str, start, end = ent.text, ent.start_pos, ent.end_pos
+                
+                # check genetive
+                if ent.text.endswith("'s"):
+                    # Spacy Interface
+                    for nc in noun_chunks:
+                        if ent.text in str(nc) and ent.start_pos >= nc.start:
+                            ent_str = str(nc)
+                            start, end = nc.start, nc.end
+                            break
+                            
+                # strip punctuation from the entity name 
+                if ent_str[0] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~":
+                    start += 1
+                    ent_str = ent_str[1:]
+                if ent_str[-1] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~":
+                    end -= 1
+                    ent_str = ent_str[:-1]
+                
+                # append to entities
+                ents[idx].append((ent_str, start, end))
+                ents_cache += " " + ent_str
+                
         return ents
 
     
@@ -589,9 +638,15 @@ class NERCoref(object):
                 except:
                     pairs_cp.append(p)
 
+            # sentences with no entitiess
             if len(pairs_cp) == 0:
+                for k in queries.keys():
+                    if k == 'sentence':
+                        queries['sentence'].append(sentences[idx])
+                    else:
+                        queries[k].append(None)
                 continue
-
+                
             heads, tails = zip(*pairs_cp)
             h_ents, h_starts, h_ends = zip(*heads)
             t_ents, t_starts, t_ends = zip(*tails)
@@ -616,10 +671,11 @@ class NERCoref(object):
 
 
 if __name__ == "__main__":
-    import codecs
-    with codecs.open("../../../temp.txt", encoding='utf-8') as f:
-        text = f.read()
-	
+    text = "All through the hot summer campaign of 2016, as Donald Trump and Donald Trump aides dismissed talk of unseemly ties to Moscow, two of Donald Trump key business partners were working furiously on a secret track: negotiations to build what would have been the tallest building in Europe and an icon of the Donald Trump empire -- the Trump World Tower Moscow."
+    
     resolver = NERCoref()
     queries = resolver.generate_queries(text)
-    [print(f"{k}: {len(v)}") for k, v in queries.items()]
+    for i in range(len(queries['head'])):
+        print("--------------------------------------------------------")
+        for k in queries.keys():
+            print(f"{k}: {queries[k][i]}")
