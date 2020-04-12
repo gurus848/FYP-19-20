@@ -58,10 +58,18 @@ class TargetSentiment(object):
                     res.update([j for j in range(i, i+n+1)])
                     res.update([anc.i for anc in doc[i+n].ancestors])
                     break
+
+        if len(inds) == 4:
+            min_, max_ = min(inds), max(inds)
+            res = [j for j in sorted(list(res)) if j >= min_ and j <= max_]
+            subtext = " ".join([str(doc[j]) for j in sorted(res)])
         
-        min_, max_ = min(inds), max(inds)
-        res = [j for j in sorted(list(res)) if j >= min_ and j <= max_]
-        return " ".join([str(doc[j]) for j in sorted(res)])
+        else:
+            ih = text.index(head)
+            ij = text.index(tail)
+            subtext = text[ ih:ij+len(tail) ] if ih < ij else text[ ij+len(head) ]
+
+        return subtext
 
 
     def predict(self, text, head, tail, threshold=0.9, return_dict=False):
@@ -111,5 +119,5 @@ class TargetSentiment(object):
 if __name__ == "__main__":
     ts = TargetSentiment()
     
-    text = "Ms. Warren is seeking do better than her third-place standing in Iowa, helping create momentum for later states and supplant Mr. Buttigieg as the candidate pitching “unity” to a frightened Democratic electorate."
-    print(ts.predict(text, "Ms. Warren", "Mr. Buttigieg", threshold=0.95, return_dict=True))
+    text = "WASHINGTON -- The White House and lawmakers scrambled on Thursday to flesh out details of a $1 trillion economic stabilization plan to help workers and businesses weather a potentially deep recession, negotiating over the size and scope of direct payments to millions of people and aid for companies facing devastation in the coronavirus pandemic."
+    print(ts.predict(text, "WASHINGTON", "White House", threshold=0.95, return_dict=True))
