@@ -8,7 +8,7 @@ import os
 import sys
 proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
 sys.path.insert(1, proj_path + 'FewRel')  #so that the relation extraction framework can be loaded.
-from fyp_detection_framework import DetectionFramework
+from fyp_detection_framework import DetectionFramework, DataLoader
 from threading import Thread
 from .models import ExtractedRelation, Source
 from .sna_viz import SNAVizualizationManager
@@ -39,7 +39,14 @@ def home(request):
     rel_sup_datasets = []
     for i in range(len(nk_stat)):
         rel_sup_datasets.append({'i':i+1, 'sup_relations': sup_relations[i], 'nk_stat': nk_stat[i]})
-    return render(request, 'home.html', {'rel_sup_csv_form': rel_sup_csv_form, 'queries_csv_form': queries_csv_form, 'text_file_form': text_file_form, 'article_url_form': article_url_form, 'ind_sent_form':ind_sent_form, 'data': data, 'ckpts': ckpts, 'rel_sup_datasets': rel_sup_datasets, 'html_files_form':html_files_form})
+        
+    analysis_status = "Not Running"
+    if currently_analyzing:
+        analysis_status = "Running"
+    analysis_user_text = ""
+    if analysis_user is not None:
+        analysis_user_text = analysis_user
+    return render(request, 'home.html', {'rel_sup_csv_form': rel_sup_csv_form, 'queries_csv_form': queries_csv_form, 'text_file_form': text_file_form, 'article_url_form': article_url_form, 'ind_sent_form':ind_sent_form, 'data': data, 'ckpts': ckpts, 'rel_sup_datasets': rel_sup_datasets, 'html_files_form':html_files_form, 'num_results':len(data), 'analysis_status':analysis_status, 'analysis_user':analysis_user_text})
 
 @never_cache
 @login_required
@@ -116,13 +123,22 @@ def rel_sup_csv_upload(request):
     if request.method == "POST":
         relation_support_dataset = request.FILES['relation_support_dataset']
         _get_sup_relations(request.user)
-        handle_uploaded_file(relation_support_dataset, 'temp/relation_support_datasets/relation_support_dataset_{}_{}.csv'.format(len(nk_stat) + 1, request.user.username))
+        path = 'temp/relation_support_datasets/relation_support_dataset_{}_{}.csv'.format(len(nk_stat) + 1, request.user.username)
+        handle_uploaded_file(relation_support_dataset, path)
+        
+        try:
+            DataLoader.load_relation_support_csv_dataframe(path)
+        except ValueError as e:
+            os.remove(path)
+            print("removed "+path)
+            return HttpResponse(
+            json.dumps({"error": str(e)}),
+            content_type="application/json"
+        )
+        
         _get_sup_relations(request.user)
-        rel_sup_datasets = []
-        for i in range(len(nk_stat)):
-            rel_sup_datasets.append({'i':i+1, 'sup_relations': sup_relations[i], 'nk_stat': nk_stat[i]})
         return HttpResponse(
-            json.dumps({'success':'success', 'rel_sup_datasets':rel_sup_datasets}),
+            json.dumps({'success':'success'}),
             content_type="application/json"
         )
     else:
@@ -140,7 +156,8 @@ def del_rel_sup_csv(request):
         os.remove("temp/relation_support_datasets/relation_support_dataset_{}_{}.csv".format(dataset_index, request.user.username))
         if len(nk_stat) > dataset_index:
             for i in range(dataset_index+1, len(nk_stat)+1):
-                os.rename("temp/relation_support_datasets/relation_support_dataset_{}.csv".format(i), "temp/relation_support_datasets/relation_support_dataset_{}.csv".format(i-1))
+                os.rename("temp/relation_support_datasets/relation_support_dataset_{}_{}.csv".format(i, request.user.username), "temp/relation_support_datasets/relation_support_dataset_{}_{}.csv".format(i-1, request.user.username))
+        _get_sup_relations(request.user)
     return redirect('home')
     
 def query_csv_upload(request):
@@ -211,20 +228,27 @@ def select_ind_sentence(request):
 
 
 currently_analyzing = False  #flag indicating whether the analysis is currently running or not
+analysis_user = None  #records which user is currently running the analysis
 results = []  #list of the results which have been generated so far
 cancel_flag=[False]  #flag used to indicate whether the analysis should be cancelled or not
 errors = []  #list of the errors whcih have been generated
 error_i = 0  #index from which new errors can be sent
 # d = DetectionFramework(ckpt_path=proj_path + "FewRel/checkpoint/NA-predict-model.pth.tar") #the detection framework
 d = None
-def do_analysis(ckpt, queries_type, request):
+def do_analysis(ckpt, queries_type, entities_type, request):
     """
         Runs the actual analysis in a different thread
     """
-    global currently_analyzing, results, d
+    global currently_analyzing, results, d, analysis_user
     try:
         print("starting analysis!")
+        if entities_type == "all":
+            print("using all entities detected!")
+        elif entities_type == "uploaded":
+            print("using only entities specified in csv file!")
+        
         currently_analyzing = True
+        analysis_user = request.user.username
         results = []
         proj_path = os.path.abspath(os.path.dirname(__file__)).split("FYP_Web_App")[0]
         ckpt = proj_path + "FewRel/checkpoint/" + ckpt
@@ -257,6 +281,9 @@ def do_analysis(ckpt, queries_type, request):
             
         elif queries_type == "html_option":
             d.load_html_file_queries(os.path.abspath("temp/html_files"))
+        
+        if entities_type == "uploaded":
+            d.trim_queries_based_on_entities_file(os.path.abspath("temp/entities_csv_file.csv"))
 
         d.detect(rt_results=results, cancel_flag=cancel_flag)
         src=None
@@ -285,6 +312,7 @@ def do_analysis(ckpt, queries_type, request):
         print(tb)
     finally:
         currently_analyzing = False
+        analysis_user = None
     
 
 def _start_analysis(request):
@@ -294,7 +322,7 @@ def _start_analysis(request):
 
     if not currently_analyzing:
         cancel_flag[0] = False
-        t = Thread(target=do_analysis, args=(request.POST.get('ckpt'),request.POST.get('queries_type'),request))
+        t = Thread(target=do_analysis, args=(request.POST.get('ckpt'),request.POST.get('queries_type'),request.POST.get('entities_type'), request))
         t.start()
         return HttpResponse(
                 json.dumps({"success": "analysis started"}),
@@ -333,7 +361,7 @@ def get_analysis_results(request):
         if not currently_analyzing:
             status = 'finished_analysis'
         return HttpResponse(
-            json.dumps({'status':status, 'new_data':new_data}),
+            json.dumps({'status':status, 'new_data':new_data, 'num_results':len(results)}),
             content_type="application/json"
         )
     
@@ -342,12 +370,15 @@ def cancel_analysis(request):
         Cancels the analysis if it is currently running.
     """
     cancel_flag[0] = True
+    global currently_analyzing
+
     if not currently_analyzing:
         return HttpResponse(
             json.dumps({'error':"error"}),
             content_type="application/json"
         )
     else:
+        currently_analyzing = False
         return HttpResponse(
             json.dumps({'success':"success"}),
             content_type="application/json"
@@ -575,12 +606,66 @@ def del_results_csv(request):
             json.dumps({"status": "success"}),
             content_type="application/json"
         )
-    
+
+edge_bundle_gen_status = "not_generated"
+def _gen_gen_edge_bundle_graph(request, dataset_type):
+    global edge_bundle_gen_status
+    try:
+        if edge_bundle_gen_status == "generating":
+            return
+        edge_bundle_gen_status = "generating"
+        SNAVizualizationManager.construct_edge_bundle_graph(request, dataset_type)
+        edge_bundle_gen_status = "generated"
+    except Exception as e:
+        edge_bundle_gen_status = "error"
+        print(str(e))
+        sna_viz_errors.append(str(e))
+        tb = traceback.format_exc()
+        print(tb)    
+
 def gen_edg_bundle(request):
     """
         Handles requests to generate a hierarchical edge bundling visualizations.
     """
-    pass
+    global sna_viz_error_i
+    if request.method == "POST":
+        dataset_type = request.POST.get('dataset')
+        if edge_bundle_gen_status == "generating":
+            return HttpResponse(
+            json.dumps({"error": "started generation"}),
+            content_type="application/json"
+        )
+        t = Thread(target=_gen_gen_edge_bundle_graph ,args=(request, dataset_type))
+        t.start()
+        return HttpResponse(
+            json.dumps({"status": "started generation"}),
+            content_type="application/json"
+        )
+        
+    elif request.method == "GET":
+        if edge_bundle_gen_status == "generating":
+            return HttpResponse(
+                json.dumps({"status": "still generating"}),
+                content_type="application/json"
+            )
+        elif edge_bundle_gen_status == "generated":
+            return HttpResponse(
+            json.dumps({"status": "finished"}),
+            content_type="application/json"
+        )
+        elif edge_bundle_gen_status == "not_generated":
+            return HttpResponse(
+            json.dumps({"error": "error, not generated yet"}),
+            content_type="application/json"
+        )
+        elif edge_bundle_gen_status == "error":
+            from_i = sna_viz_error_i
+            sna_viz_error_i = len(sna_viz_errors)
+            return HttpResponse(
+                json.dumps({'status':'error',
+                           'errors':sna_viz_errors[from_i:]}),
+                content_type="application/json"
+            )
 
 
 def dwn_rel_sup_csv(request):
@@ -634,3 +719,15 @@ def get_sna_results(request):
             json.dumps({"status": "success", 'result_dict':result_dict}),
             content_type="application/json"
         )
+
+def upload_request_entities_csv(request):
+    """
+        Called when a CSV is uploaded in which only these entities are to be considered in the relation extraction.
+    """
+    entities_csv_file = request.FILES['entities_csv_file']
+    handle_uploaded_file(entities_csv_file, 'temp/entities_csv_file.csv')
+    
+    return HttpResponse(
+            json.dumps({"status": "success"}),
+            content_type="application/json"
+        ) 

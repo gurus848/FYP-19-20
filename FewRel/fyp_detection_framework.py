@@ -1,8 +1,6 @@
 import spacy
 import pandas as pd
 from fyp_detection_functions import Detector
-from textblob import TextBlob
-import math
 import os
 import sys
 from nlp_code import read_news_article
@@ -97,9 +95,9 @@ class DataLoader:
                 head_indices, tail_indices = DataLoader._get_indices_alt(tokens, tokenized_head, tokenized_tail)
                 
             if head_indices is None or tail_indices is None:
-                error_string = ""
-                error_string += ("Problem sentence: {}\n".format(sentence))
-                error_string += ("Problem sentence head: {}\n".format(head))
+                error_string = "In the provided relation support dataset at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly. \n<br>"
+                error_string += ("Problem sentence: {}\n <br>".format(sentence))
+                error_string += ("Problem sentence head: {}\n <br>".format(head))
                 error_string += ("Problem sentence tail: {}\n".format(tail))
                 raise ValueError(error_string)
     
@@ -111,10 +109,7 @@ class DataLoader:
             The format should be correct: csv should contain 'sentence', 'head', 'tail' and 'reldescription' columns. More could be added later.
         """
         df = pd.read_csv(filepath, engine='python')
-        try:
-            DataLoader.check_loaded_relation_support_dataframe(df)
-        except ValueError as e:
-            raise ValueError("In the provided relation support dataset at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly. \n {}".format(str(e)))
+        DataLoader.check_loaded_relation_support_dataframe(df)
         return df
     
     @staticmethod
@@ -136,9 +131,9 @@ class DataLoader:
             }
             for _, row in dft.iterrows():
                 example_info = {
-                    'sentence':row['sentence'],
-                    'head':row['head'],
-                    'tail':row['tail']
+                    'sentence':unidecode(row['sentence']),
+                    'head':unidecode(row['head']),
+                    'tail':unidecode(row['tail'])
                 }
                 info['examples'].append(example_info)
             support_relation_info.append(info)
@@ -281,7 +276,7 @@ class DetectionFramework:
         df = pd.read_csv("{}/nlp_code/data/extracted_article_data.csv".format(proj_path))
         self.queries = []
         for t in titles:
-            text = df[df['title'] == title].iloc[0]['text']
+            text = df[df['title'] == t].iloc[0]['text']
             text = unidecode(text)
             results = self.ner_coref.generate_queries(text)
             for i in range(len(results['sentence'])):
@@ -318,6 +313,13 @@ class DetectionFramework:
                     break
 
                 #the head and tail are predefined in the query, so just those are used.
+                
+                if q['head'] is None and i == 0:  #the case where no queries were made with this sentence
+                    res = {'sentence':q['sentence'], 'head':"", 'tail':"", 'pred_relation':"", 'conf':-1, 'sent':"", 'rel_sup_ind':None}
+                    results.append(res)
+                    if rt_results is not None:
+                        rt_results.append(res)
+                    continue
 
                 result = self.detector.run_detection_algorithm(q, sup)
                 self.detector.print_result(result['sentence'], result['head'], result['tail'], result['pred_relation'])
@@ -331,3 +333,21 @@ class DetectionFramework:
                 gc.collect()
 
         return results
+    
+    def trim_queries_based_on_entities_file(self, path):
+        """
+            Called in case a CSV has been uploaded in which entities have been specified as the ones to only be used.
+        """
+        
+        print("trim queries called!")
+        
+        df = pd.read_csv(path)
+        entities = list(i.lower() for i in df['entity'])
+        new_queries = []
+        for q in self.queries:
+            for e in entities:
+                if e in q['head'].lower() or e in q['tail'].lower() or q['head'].lower() in e or q['tail'].lower() in e:
+                    new_queries.append(q)
+                    break
+        
+        self.queries = new_queries

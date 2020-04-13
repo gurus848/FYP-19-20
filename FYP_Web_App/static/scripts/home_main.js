@@ -36,7 +36,9 @@ $(document).ready(function() {
        $('#news_article_form').hide();
        $('#ind_sent_form').hide(); 
     $('#html_files_form').hide();
-    $('.analysis_status_spinner').hide();
+    if($('#analysis_status_indicator').text() == "Analysis Status: Not Running"){   //only hide if the analysis is not running
+        $('.analysis_status_spinner').hide();
+    }
     $("#home_nav").addClass("active");
 });
 
@@ -79,12 +81,15 @@ $('#rel_sup_csv_form').on('submit', function(event){
         // handle a successful response
         success : function(json) {
             console.log(json); // log the returned json to the console
-            $('#rel_sup_dataset_info').empty();
-            for(var i = 1; i <= json.rel_sup_datasets.length; i++){
-                $('#rel_sup_dataset_info').append('Dataset '+i.toString()+' - Supported Relations: '+json.rel_sup_datasets[i-1].sup_relations+',   '+json.rel_sup_datasets[i-1].nk_stat+'</br>');
-                $('#rel_sup_dataset_info').append('<button value="'+i.toString()+'" class="rel_sup_deletor btn btn-danger">Delete</button><button value="'+i.toString()+'" class="rel_sup_downloader btn btn-primary">Download</button></br>')
+            if(json.hasOwnProperty('success')){
+                window.location.replace('');   //redirect
+                
+            }else if(json.hasOwnProperty('error')){
+                alert('Error when uploading relation support CSV! Please check the error section!');
+                $('#error_here_yet').empty();
+                $('#errors_div').prepend("<p> Relation CSV Issue: "+json.error+"</p>");
             }
-            alert('Uploaded relation support CSV successfully!');
+
         },
 
         // handle a non-successful response
@@ -94,9 +99,7 @@ $('#rel_sup_csv_form').on('submit', function(event){
     });
 });
 
-// called when the do analysis button is clicked for the queries csv dataset
-$('#query_csv_form').on('submit', function(event){
-    event.preventDefault();
+function do_csv_file_queries() {
     var formData = new FormData();
     var queries_name = $('#id_queries_dataset')[0].files[0].name
     //validating that only csv files can be uploaded
@@ -109,6 +112,7 @@ $('#query_csv_form').on('submit', function(event){
     formData.append('queries_dataset', $('#id_queries_dataset')[0].files[0]);
     formData.append('ckpt', $('#ckpt_selector').val());
     formData.append('queries_type', $("#query_datset_type_selection label.active input").val())
+    formData.append('entities_type', $('input[name="entities_dataset_selection"]:checked').val());
     $.ajax({
         url : "query_csv_upload/", // the endpoint
         type : "POST", // http method
@@ -127,11 +131,15 @@ $('#query_csv_form').on('submit', function(event){
             console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
         }
     });
+}
+
+// called when the do analysis button is clicked for the queries csv dataset
+$('#query_csv_form').on('submit', function(event){
+    event.preventDefault();
+    upload_entities_dataset_csv_then_run(do_csv_file_queries);
 });
 
-// called when the do analysis button is clicked for the text file upload
-$('#text_file_form').on('submit', function(event){
-    event.preventDefault();
+function do_text_file_queries() {
     var formData = new FormData();
     
     var files = $('#id_text_file_dataset')[0].files
@@ -150,6 +158,7 @@ $('#text_file_form').on('submit', function(event){
     
     formData.append('ckpt', $('#ckpt_selector').val());
     formData.append('queries_type', $("#query_datset_type_selection label.active input").val())
+    formData.append('entities_type', $('input[name="entities_dataset_selection"]:checked').val());
     $.ajax({
         url : "text_file_upload/", // the endpoint
         type : "POST", // http method
@@ -168,15 +177,46 @@ $('#text_file_form').on('submit', function(event){
             console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
         }
     });
+}
+
+// called when the do analysis button is clicked for the text file upload
+$('#text_file_form').on('submit', function(event){
+    event.preventDefault();
+    upload_entities_dataset_csv_then_run(do_text_file_queries);
 });
+
+function do_news_article_queries() {
+    console.log({'entities_type': $('input[name="entities_dataset_selection"]:checked').val()})
+    $.ajax({
+        url : "select_news_article/", // the endpoint
+        type : "POST", // http method
+        data : {'article_url': $('#id_news_article_url').val(), 'ckpt': $('#ckpt_selector').val(), 'queries_type': $("#query_datset_type_selection label.active input").val(), 'entities_type': $('input[name="entities_dataset_selection"]:checked').val()},
+
+        // handle a successful response
+        success : function(json) {
+            console.log(json); // log the returned json to the console
+            analysis_start_success_check(json);
+        },
+
+        // handle a non-successful response
+        error : function(xhr,errmsg,err) {
+            console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+        }
+    });
+}
 
 // called when the do analysis button is clicked for the news article method
 $('#news_article_form').on('submit', function(event){
     event.preventDefault();
+    upload_entities_dataset_csv_then_run(do_news_article_queries);
+});
+
+function do_ind_sentence_queries() {
     $.ajax({
-        url : "select_news_article/", // the endpoint
+        url : "ind_sent_query/", // the endpoint
         type : "POST", // http method
-        data : {'article_url': $('#id_news_article_url').val(), 'ckpt': $('#ckpt_selector').val(), 'queries_type': $("#query_datset_type_selection label.active input").val()},
+        data : {'ind_sent': $('#id_sentence').val(), 'ckpt': $('#ckpt_selector').val(), 'queries_type': $("#query_datset_type_selection label.active input").val(),
+                   'entities_type': $('input[name="entities_dataset_selection"]:checked').val()},
 
         // handle a successful response
         success : function(json) {
@@ -189,27 +229,12 @@ $('#news_article_form').on('submit', function(event){
             console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
         }
     });
-});
+}
 
 // called when the do analysis button is clicked for the news article method
 $('#ind_sent_form').on('submit', function(event){
     event.preventDefault();
-    $.ajax({
-        url : "ind_sent_query/", // the endpoint
-        type : "POST", // http method
-        data : {'ind_sent': $('#id_sentence').val(), 'ckpt': $('#ckpt_selector').val(), 'queries_type': $("#query_datset_type_selection label.active input").val()},
-
-        // handle a successful response
-        success : function(json) {
-            console.log(json); // log the returned json to the console
-            analysis_start_success_check(json);
-        },
-
-        // handle a non-successful response
-        error : function(xhr,errmsg,err) {
-            console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
-        }
-    });
+    upload_entities_dataset_csv_then_run(do_ind_sentence_queries);
 });
 
 //Does GET results periodically to load the results of the analysis.
@@ -228,11 +253,13 @@ function check_analysis_results() {
                 do_check_request = false;
                 $('#analysis_status_indicator').text('Analysis Status: Finished Analyzing');
                 $('.analysis_status_spinner').hide();
+                $('#num_results_indicator').html('Num Results: '+json.num_results.toString());
             }
             if(json.status == 'analysis_not_running'){
                 do_check_request = false;
                 $('#analysis_status_indicator').text('Analysis Status: Not Running');
                 $('.analysis_status_spinner').hide();
+                $('#num_results_indicator').html('Num Results: '+json.num_results.toString());
                 return;
             }
             if(json.status == 'error'){
@@ -254,6 +281,7 @@ function check_analysis_results() {
                 $('#result_table').append('<tr><td>'+new_data[i].sentence+'</td> <td class="align-middle">'+new_data[i].head+'</td><td class="align-middle">'+new_data[i].tail+'</td><td>'+new_data[i].pred_relation+'</td><td>'+new_data[i].pred_sentiment+'</td><td>'+new_data[i].conf.toString()+"%"+'</td><td>'+new_data[i].dataset+'</td></tr>');
             }
             cur_index_reached += new_data.length;
+            $('#num_results_indicator').html('Num Results: '+json.num_results.toString());
         },
 
         // handle a non-successful response
@@ -361,9 +389,7 @@ $('#rel_sup_dataset_info').on('click', '.rel_sup_downloader', function(){
     link.click();
 });
 
-//Called with the html files form is submitted
-$('#html_files_form').on('submit', function(){
-    event.preventDefault();
+function do_html_file_queries() {
     var formData = new FormData();
     var files = $('#id_html_files_dataset')[0].files
     for(var j = 0; j < files.length; j++){
@@ -380,7 +406,8 @@ $('#html_files_form').on('submit', function(){
     }
     
     formData.append('ckpt', $('#ckpt_selector').val());
-    formData.append('queries_type', $("#query_datset_type_selection label.active input").val())
+    formData.append('queries_type', $("#query_datset_type_selection label.active input").val());
+    formData.append('entities_type', $('input[name="entities_dataset_selection"]:checked').val());
     $.ajax({
         url : "html_files_upload/", // the endpoint
         type : "POST", // http method
@@ -399,4 +426,51 @@ $('#html_files_form').on('submit', function(){
             console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
         }
     });
+}
+
+//Called with the html files form is submitted
+$('#html_files_form').on('submit', function(){
+    event.preventDefault();
+    upload_entities_dataset_csv_then_run(do_html_file_queries);
 });
+
+//uploads a csv dataset to the server if necessary and then runs the callback specified by the user to do further requests
+function upload_entities_dataset_csv_then_run(callback) {
+    event.preventDefault();
+    if($('input[name="entities_dataset_selection"]:checked').val() == "all"){
+        callback.call();
+        return;
+    }
+    var formData = new FormData();
+    if($('#entities_csv_file').val() == ""){
+        alert('Error! No file selected!');
+        return;
+    }
+    var dataset_name = $('#entities_csv_file')[0].files[0].name
+    //validating that only csv files can be uploaded
+    if (dataset_name.slice(-3) != 'csv'){
+        alert('Please upload csv files only!');
+        return;
+    }
+    
+    
+    formData.append('entities_csv_file', $('#entities_csv_file')[0].files[0]);
+    $.ajax({
+        url : "upload_request_entities_csv/", // the endpoint
+        type : "POST", // http method
+        data : formData,
+        processData: false,
+        contentType: false,
+
+        // handle a successful response
+        success : function(json) {
+            console.log(json); // log the returned json to the console
+            callback.call();
+        },
+
+        // handle a non-successful response
+        error : function(xhr,errmsg,err) {
+            console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+        }
+    });
+}

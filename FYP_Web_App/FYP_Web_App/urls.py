@@ -53,5 +53,7 @@ urlpatterns = [
     url(r'^sna_viz/gen_node_link/$', views.gen_node_link, name='gen_node_link'),
     url(r'^sna_viz/upload_csv/$', views.upload_sna_viz_data_csv, name='upload_sna_viz_data_csv'),
     url(r'^sna_viz/gen_edg_bundle/$', views.gen_edg_bundle, name='gen_edg_bundle'),
-    url(r'^dwn_rel_sup_csv/$', views.dwn_rel_sup_csv, name='dwn_rel_sup_csv')
+    url(r'^dwn_rel_sup_csv/$', views.dwn_rel_sup_csv, name='dwn_rel_sup_csv'),
+    url(r'^sna_viz/get_sna_results/$', views.get_sna_results, name='get_sna_results'),
+    url(r'^upload_request_entities_csv/$', views.upload_request_entities_csv, name='upload_request_entities_csv')
 ]
