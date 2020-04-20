@@ -16,8 +16,8 @@ import spacy
 from itertools import combinations
 from functools import reduce
 from operator import concat
-from flair.data import Sentence
-from flair.models import SequenceTagger
+# from flair.data import Sentence
+# from flair.models import SequenceTagger
 from collections import deque
 from textblob import TextBlob
 
@@ -84,12 +84,12 @@ class NERCoref(object):
             do_lower_case=False)
         
         # load NER model
-        print(indent + " loading Flair NER model " + indent)
-        self.ner_tagger = SequenceTagger.load('ner')
+#         print(indent + " loading Flair NER model " + indent)
+#         self.ner_tagger = SequenceTagger.load('ner')
 
         # load spacy dependency parser
         print(indent + " loading Spacy Dependency Parser ===" + indent)
-        self.dep_parser = spacy.load("en_core_web_sm", disable=['ner'])
+        self.dep_parser = spacy.load("en_core_web_sm")
         
         # initialise coref environment
         print(indent + " Initialising coref environment " + indent)
@@ -307,6 +307,10 @@ class NERCoref(object):
         # Coreference Prediction
         jsonline = self._create_jsonline(para)
         example = self._predict(jsonline)
+        
+        # if there are no clusters to resolve
+        if len(example["predicted_clusters"]) == 0:
+            return para
 
         # Resolution
         # store all coreferences
@@ -322,31 +326,26 @@ class NERCoref(object):
             # take one less for customising last token's spacing
             fm_space_map = example['space_map'][i:j]
             
-            # Appositional modifier case
-            if "," in first_mention:
-                appos_str = self._bert_detokenize(first_mention, fm_space_map + [0])
-                appos_mod = self.dep_parser(appos_str)
-
-                for am in appos_mod:
-                    if am.dep_ == "appos":
-                        fm_str = f"{am.text} ({am.head.text})" if am.pos_ == "PROPN" else f"{am.head.text} ({am.text})"
+            # create dependency parse tree for checking special cases
+            fm_str = self._bert_detokenize(first_mention, fm_space_map + [0])
+            fm_doc = self.dep_parser(fm_str)
+            
+            # avoid replacing common nouns
+            if len(fm_doc.ents) == 0:
+                continue
+            
+            # Appositional modifier case for PERSON only
+            if "appos" in [t.dep_ for t in fm_doc]:
+                for ent in fm_doc.ents:
+                    if ent.label_ == "PERSON":
+                        fm_str = ent.text
                         fm_tok = self.tokenizer.tokenize(fm_str)
                         fm_space_map = self._get_space_map(fm_str, fm_tok)[1:-2]
                         first_mention = fm_tok
                         break
-                    
-            # fm_str = self._bert_detokenize(first_mention, fm_space_map)
-
-            # check for global coreference: inter paragraph. 
-            # (Inefficent from detokenizer calls)
-#             gm = global_mentions.get(fm_str)
-#             if gm:
-#                 first_mention = self.tokenizer.tokenize(gm)
-#             else:
-#                 global_mentions.put(fm_str)
 
             # store other mentions indices by first mention
-            for (i, j) in cluster:
+            for (i, j) in cluster[1:]:
                 corefs[(i, j)] = (first_mention, fm_space_map)
 
         # replace all mentions with their first mentions
@@ -393,11 +392,12 @@ class NERCoref(object):
         spaces_resolved.extend(example['space_map'][prev_j+1:])
 
         # add paragraph to resolved
-        resolved = self._bert_detokenize(para_resolved, spaces_resolved)            
+        resolved = self._bert_detokenize(para_resolved, spaces_resolved)
+        
         return resolved
     
 
-    def sent_resolve(self, text, overlap=1, markers=False):
+    def sent_resolve(self, sents, markers=False):
         """
             Performs Coreference Resolution for a given text.
             The text is partitioned into sentences in 
@@ -409,62 +409,47 @@ class NERCoref(object):
             for Coreference resolution at once is 512. 
 
             Args:
-                text (str): The document to be resolved.
+                sents (list): list of string sentences to be resolved.
+                
+                markers (bool): if set, the resolved spans
+                    in text will be quoted using '*'.
+                    For debugging purposes only. 
+
+            Returns:
+                resolved (list): list of string resolved sentences. 
+        """
+        # list of resolved sentences as list of sentences tokenized
+        resolved = list()
+        for idx, sent in enumerate(sents):
+            sent = sent.strip()
+            sent_resolved = self._resolve(sent, None, markers=markers)
+            resolved.append(sent_resolved)
+        return resolved
+    
+    
+    def para_resolve(self, sents, overlap=1, markers=False):
+        """
+            Performs Coreference Resolution for a given text.
+            The text is partitioned into paragraphs with overlapping
+            sentences since the maximum number of allowed bert tokens 
+            for Coreference resolution at once is 512. 
+
+            Args:
+                sents (list): list of string sentences to be resolved.
                 
                 overlap (int): number of sentences to use
                     for each resolve for context.
                     Recommended range: 1, 2, 3. 
                     Note: If set too high, will face 
-                    AssertionError
-            for maximum BERT tokens allowed.
-                
-                markers (bool): if set, the resolved spans
-                    in text will be quoted using '*'.
-                    For debugging purposes only. 
-
-            Returns:
-                resolved (str): The input text with all references
-                    replaced with first mentions. 
-           
-            Notes:
-                Assumed that the sentences are separated by'\n'.
-        """
-        sentences = text.split('\n')
-        # list of resolved sentences as list of sentences tokenized
-        resolved = list()
-        # store for inter paragraph first mention of entities
-        global_mentions = LazyStringSet() 
-        
-        for idx, sent in enumerate(sentences):
-            sent = sent.strip()
-            para = " ".join(resolved[-overlap:] + [sent])
-
-            # Coreference Prediction
-            para_resolved = self._resolve(para, global_mentions, markers=markers)
+                    AssertionError for maximum BERT tokens allowed.
             
-            # append to resolved
-            resolved.append(para_resolved.split(".")[-2].strip() + ".")
-        
-        return "\n".join(resolved)
-    
-    
-    def para_resolve(self, text, markers=False):
-        """
-            Performs Coreference Resolution for a given text.
-            The text is partitioned into paragraphs since
-            the maximum number of allowed bert tokens 
-            for Coreference resolution at once is 512. 
-
-            Args:
-                text (str): The document to be resolved.
-                
                 markers (bool): if set, the resolved spans
                     in text will be quoted using '*'.
                     For debugging purposes only. 
 
             Returns:
-                resolved (str): The input text with all references
-                    replaced with first mentions. 
+                resolved (list): Same list of input sentences with
+                    coreferences resolved.
            
             Notes:
                 Assumed that the paragraphs are separated by'\n'.
@@ -475,118 +460,96 @@ class NERCoref(object):
         # store for inter paragraph first mention of entities
         global_mentions = LazyStringSet() 
         
-        for para in paragraphs:
-            # paragraph as BERT Tokens
-            para = para.strip()
+        for idx, sent in enumerate(sents):
+            sent = sent.strip()
+            para = "\s".join(resolved[-overlap:] + [sent])
+
+            # Coreference Prediction
             para_resolved = self._resolve(para, global_mentions, markers=markers)
-            resolved.append(para_resolved)
             
-        # return the resolved text
-        return "\n".join(resolved)
-    
-    
-    def reduce_entity(self, entname):
-        """
-            Tries to reduce entity mentions longer than
-            two words or resolve multiple entity types
-            in a phrase.
-            
-            Args:
-                entname (str): entity mention to reduce.
-            
-            Returns:
-                ent_reduced (str): entity mention in 
-                    two words.
-        """
-        ent_reduced = ""
-        if entname.count(" ") > 1:
-            ent_reduced = entname
-        
-        else:
-            phrase = Sentence(entname)
-            self.ner_tagger.predict(phrase)
-            fm_ents = phrase.get_spans('ner')
-
-            # check for multiple entities in mention phrase
-            # assume the dependency root as entity mention
-            if len(fm_ents) > 0:
-                dep = next(self.dep_parser(entname).sents)
-                r = dep.root.idx
-
-                for ent in fm_ents:
-                    if r in range(ent.start_pos, ent.end_pos):
-                        ent_reduced = ent.text
-        return ent_reduced
+            # append to resolved
+            resolved.append(para_resolved.split("\s")[-1].strip())
+        return resolved
     
 
-    def get_entities(self, text, disable_types=None, ent_span=False):
+    def get_entities(self, sentences, allowed_types=None, ent_span=False):
         """
             Get entities for a given text. 
 
             Args:
-                text (str): text to extract entities from.
+                sentences (list): list of string sentences to 
+                    obtain entities from.
                 
-                disable_types (list): list of entity types
-                    that must not be detected.
-                    Can include 'PER', 'LOC', 'ORG', 'MISC'
+                allowed_types (list): list of entity types
+                    that must be detected. Can include any of 
+                    the entity types provided by Spacy.
+                    
+                    if None given, all types will be allowed.
 
             Returns:
                 ents (dict): dictionary of entities indexed
                     by sentence id. 
         """
         ents = dict()
-        t = TextBlob(text)
-        sentences = [str(s) for s in t.sentences]
         
         # dependency parsing on sentences
         docs = [self.dep_parser(s) for s in sentences]
         
         for idx, s in enumerate(sentences):
-            sent = Sentence(s)
-            self.ner_tagger.predict(sent)
-            # noun chunks to replace genetives
-            noun_chunks = list(docs[idx].noun_chunks)
-            ents_cache = ""
-            
             ents[idx] = list()
-            for ent in sent.get_spans('ner'):
-                # check entity type
-                if disable_types and ent.tag in disable_types:
-                    continue
+            for ent in docs[idx].ents:
+                if allowed_types:
+                    if ent.label_ in allowed_types:
+                        ents[idx].append((ent.text, ent.start_char, ent.end_char))
+                else:
+                    ents[idx].append((ent.text, ent.start_char, ent.end_char))
+#              
+#             sent = Sentence(s)
+#             self.ner_tagger.predict(sent)
+#             # noun chunks to replace genetives
+#             noun_chunks = list(docs[idx].noun_chunks)
+#             ents_cache = ""
+            
+#             ents[idx] = list()
+#             for ent in sent.get_spans('ner'):
+#                 # check entity type
+#                 if disable_types and ent.tag in disable_types:
+#                     continue
                 
-                # avoid substring entities and appositional modifiers
-                ent_span = docs[idx].char_span(ent.start_pos, ent.end_pos)
-                if ent.text in ents_cache or str(ent_span.root) in ents_cache:
-                    continue
+#                 # avoid substring entities and appositional modifiers
+#                 ent_span = docs[idx].char_span(ent.start_pos, ent.end_pos)
+#                 if ent.text in ents_cache or str(ent_span.root) in ents_cache:
+#                     continue
                 
-                # Flair Interface
-                ent_str, start, end = ent.text, ent.start_pos, ent.end_pos
+#                 # Flair Interface
+#                 ent_str, start, end = ent.text, ent.start_pos, ent.end_pos
                 
-                # check genetive
-                if ent.text.endswith("'s"):
-                    # Spacy Interface
-                    for nc in noun_chunks:
-                        if ent.text in str(nc) and ent.start_pos >= nc.start:
-                            ent_str = str(nc)
-                            start, end = nc.start, nc.end
-                            break
+#                 # check genetive
+#                 if ent.text.endswith("'s"):
+#                     # Spacy Interface
+#                     for nc in noun_chunks:
+#                         if ent.text in str(nc) and ent.start_pos >= nc.start:
+#                             ent_str = str(nc)
+#                             start, end = nc.start, nc.end
+#                             break
                             
-                # strip punctuation from the entity name 
-                if ent_str[0] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~":
-                    start += 1
-                    ent_str = ent_str[1:]
-                if ent_str[-1] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~":
-                    end -= 1
-                    ent_str = ent_str[:-1]
+#                 # strip punctuation from the entity name 
+#                 if ent_str[0] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~":
+#                     start += 1
+#                     ent_str = ent_str[1:]
+#                 if ent_str[-1] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~":
+#                     end -= 1
+#                     ent_str = ent_str[:-1]
                 
-                # append to entities
-                ents[idx].append((ent_str, start, end))
-                ents_cache += " " + ent_str
+#                 # append to entities
+#                 ents[idx].append((ent_str, start, end))
+#                 ents_cache += " " + ent_str
+        
                 
         return ents
 
     
-    def generate_queries(self, text, use_sent=True, overlap=1, bidirectional=False, disable_types=None):
+    def generate_queries(self, text, use_sent=False, overlap=1, bidirectional=False, disable_types=None):
         """
             Generates a pandas.DataFrame of Relation Extraction
             queries.
@@ -609,22 +572,22 @@ class NERCoref(object):
                     convert to dataframe. 
                     columns = ['sentence', 'head', 'tail'].
         """
+        # get sentences
+        sents = text.split('\n')
+        
         # resolve
         if use_sent:
-        	resolved = self.sent_resolve(text, overlap=overlap)
+        	resolved = self.sent_resolve(sents, markers=False)
         else:
-            resolved = self.para_resolve(text)
+            resolved = self.para_resolve(sents, overlap=overlap, markers=False) 
 
         # get entities
-        ents = self.get_entities(resolved, disable_types=disable_types)
+        ents = self.get_entities(resolved, allowed_types=["PERSON", "ORG"])
 
         # create queries using dataframe
         queries = {'sentence': [], 'head': [], 'tail': [], 
                    'head_start': [], 'head_end': [],
                    'tail_start': [], 'tail_end': []}
-
-        t = TextBlob(resolved)
-        sentences = [str(s) for s in t.sentences]
 
         # iterate over potential entity pairs for each sentence in text
         for idx, ent_list in ents.items():
@@ -642,7 +605,7 @@ class NERCoref(object):
             if len(pairs_cp) == 0:
                 for k in queries.keys():
                     if k == 'sentence':
-                        queries['sentence'].append(sentences[idx])
+                        queries['sentence'].append(resolved[idx])
                     else:
                         queries[k].append(None)
                 continue
@@ -650,7 +613,7 @@ class NERCoref(object):
             heads, tails = zip(*pairs_cp)
             h_ents, h_starts, h_ends = zip(*heads)
             t_ents, t_starts, t_ends = zip(*tails)
-            queries['sentence'].extend( len(pairs_cp)*[sentences[idx]] )
+            queries['sentence'].extend( len(pairs_cp)*[resolved[idx]] )
             queries['head'].extend(h_ents)
             queries['tail'].extend(t_ents)
             queries['head_start'].extend(h_starts)
@@ -659,7 +622,7 @@ class NERCoref(object):
             queries['tail_end'].extend(t_ends)
             
             if bidirectional:
-                queries['sentence'].extend( len(pairs_cp)*[sentences[idx]] )
+                queries['sentence'].extend( len(pairs_cp)*[resolved[idx]] )
                 queries['head'].extend(t_ents)
                 queries['tail'].extend(h_ents)
                 queries['head_start'].extend(t_starts)
@@ -671,11 +634,16 @@ class NERCoref(object):
 
 
 if __name__ == "__main__":
-    text = "All through the hot summer campaign of 2016, as Donald Trump and Donald Trump aides dismissed talk of unseemly ties to Moscow, two of Donald Trump key business partners were working furiously on a secret track: negotiations to build what would have been the tallest building in Europe and an icon of the Donald Trump empire -- the Trump World Tower Moscow."
+    with open("../../../temp.txt", encoding='utf-8') as f:
+        text = f.read()
     
     resolver = NERCoref()
-    queries = resolver.generate_queries(text)
+    queries = resolver.generate_queries(text, use_sent=False)
+    
     for i in range(len(queries['head'])):
         print("--------------------------------------------------------")
         for k in queries.keys():
-            print(f"{k}: {queries[k][i]}")
+            if type(queries[k][i]) == str:
+                print(f"{k}: {queries[k][i].encode('utf-8')}")
+            else:
+                print(f"{k}: {queries[k][i]}")
