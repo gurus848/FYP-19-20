@@ -5,6 +5,7 @@ from .models import ExtractedRelation, Source
 import pandas as pd
 import os
 import sys
+import json
 proj_path = os.path.abspath(os.path.dirname(__file__)).split("FewRel")[0]
 sys.path.insert(1, proj_path + 'src/modelling/')
 import soc_net
@@ -27,18 +28,22 @@ class SNAVizualizationManager:
             for obj in objs:
                 if obj.pred_relation == 'NA':  #ignore NA relations
                     continue
+                if len(obj.head) == 0:
+                    continue
                 unique_ents.add(obj.head)
                 unique_ents.add(obj.tail)
-                edges.append((obj.head, obj.tail, obj.pred_relation))
+                edges.append((obj.head, obj.tail, obj.pred_relation, obj.sentiment))
                 rels.add(obj.pred_relation)
         elif dataset_type == "uploaded":
             df = pd.read_csv("temp/sna_viz/sna_viz_dataset.csv")
             for i, row in df.iterrows():
                 if row['Predicted Relation'] == 'NA':  #ignore NA relations
                     continue
+                if not isinstance(row['Head'], str) or len(row['Head']) == 0:
+                    continue
                 unique_ents.add(row['Head'])
                 unique_ents.add(row['Tail'])
-                edges.append((row['Head'], row['Tail'], row['Predicted Relation']))
+                edges.append((row['Head'], row['Tail'], row['Predicted Relation'], row['Predicted Sentiment']))
                 rels.add(row['Predicted Relation'])
         elif dataset_type == "specific_timestamp":
             source_id = request.POST.get('source_id')
@@ -47,9 +52,11 @@ class SNAVizualizationManager:
             for obj in objs:
                 if obj.pred_relation == 'NA':  #ignore NA relations
                     continue
+                if len(obj.head) == 0:
+                    continue
                 unique_ents.add(obj.head)
                 unique_ents.add(obj.tail)
-                edges.append((obj.head, obj.tail, obj.pred_relation))
+                edges.append((obj.head, obj.tail, obj.pred_relation, obj.sentiment))
                 rels.add(obj.pred_relation)
         
         rels = list(rels)
@@ -60,7 +67,7 @@ class SNAVizualizationManager:
             G.add_node(i, node_type='Entity')
 
         for e in edges:
-            G.add_edge(e[0], e[1], typ=e[2], relation=e[2])
+            G.add_edge(e[0], e[1], typ=e[2], relation=e[2], sent=e[3])
             
         return G, rels
     
@@ -136,8 +143,6 @@ class SNAVizualizationManager:
 
         fig = go.Figure(data=traces,
                      layout=go.Layout(
-#                         title='Relationship between different Entities',
-#                         titlefont=dict(size=16),
                         hovermode='closest',
                         margin=dict(b=20,l=5,r=5,t=40),
                         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
@@ -163,3 +168,47 @@ class SNAVizualizationManager:
         return_dict['communities'] = communities
         
         return return_dict
+    
+    @staticmethod
+    def construct_edge_bundle_graph(request, dataset_type):
+        """
+            Contructs an edge bundling graph, with the data saved in JSON files.
+        """
+        
+        G, rels = SNAVizualizationManager.construct_nx_graph(request, dataset_type)
+        
+        name_id_mapping = {}
+        
+        main_dict = []
+        
+        positive_dependencies_dict = []
+        negative_dependencies_dict = []
+        neutral_dependencies_dict = []
+        
+        for i, node in enumerate(G.nodes()):
+            if i == 0:
+                main_dict.append({'id': i, 'name': node, 'size':500})
+            else:
+                main_dict.append({'id': i, 'name': node, 'parent': 0, 'size':500})
+                
+            name_id_mapping[node] = i
+        
+        for edge in G.edges(data=True):
+            if edge[2]['sent'] == 'POSITIVE':
+                positive_dependencies_dict.append({'source': name_id_mapping[edge[1]], 'target':name_id_mapping[edge[0]], 'sent':edge[2]['sent'], 'rel':edge[2]['typ']})
+            elif edge[2]['sent'] == 'NEGATIVE':
+                negative_dependencies_dict.append({'source': name_id_mapping[edge[1]], 'target':name_id_mapping[edge[0]], 'sent':edge[2]['sent'], 'rel':edge[2]['typ']})
+            elif edge[2]['sent'] == 'NEUTRAL':
+                neutral_dependencies_dict.append({'source': name_id_mapping[edge[1]], 'target':name_id_mapping[edge[0]], 'sent':edge[2]['sent'], 'rel':edge[2]['typ']})
+            
+        with open('static/edge_bundle.json','w') as f:
+            json.dump(main_dict, f)
+            
+        with open('static/edge_bundle_dependencies_positive.json','w') as f:
+            json.dump(positive_dependencies_dict, f)
+        
+        with open('static/edge_bundle_dependencies_negative.json','w') as f:
+            json.dump(negative_dependencies_dict, f)
+        
+        with open('static/edge_bundle_dependencies_neutral.json','w') as f:
+            json.dump(neutral_dependencies_dict, f)

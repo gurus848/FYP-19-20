@@ -44,6 +44,9 @@
                 <br/>
                 <p>
                     Columns expected in the relation support dataset CSV are 'sentence', 'head', 'tail' and 'reldescription'. You can download an example relation support dataset from the Help page.
+                <br/>
+                <br/>
+                    You can construct the dataset on the <a href="/dataset_cntr">dataset constructor</a> page.
                 </p>
             </div>
         </div>
@@ -58,7 +61,8 @@
                 <div class="spinner-border float-right analysis_status_spinner" role="status" ></div>
             </div>
             <div class="card-body">
-                <p id="analysis_status_indicator">Analysis Status: Not Running</p>
+                <p id="analysis_status_indicator">Analysis Status: {{ analysis_status }}</p>
+                <p id="analysis_status_user">Analysis Running User: {{ analysis_user }}</p>
 
                 <label class="mt-3" for="ckpt_selector">Choose model checkpoint: </label>
                 <select id="ckpt_selector">
@@ -67,6 +71,25 @@
                     {% endfor %}
                 </select>
                 <br/>
+                <br/>
+                
+                <p>Select Entities to Use:</p>
+                <form id="upload_entities_csv_form">
+              <input type="radio" id="all" name="entities_dataset_selection" value="all" checked="checked">
+              <label for="all">All Entities detected in sentence</label><br>
+              <input type="radio" id="uploaded" name="entities_dataset_selection" value="uploaded">
+              <label for="uploaded">Only entities specified in CSV File: </label>
+                <input type="file" id="entities_csv_file" name="entities_csv_file"> <br/>
+                <br/>
+                    <br/>
+
+
+
+
+
+            </form>
+                
+                
                 <label for="query_datset_type_selection">Select Query Dataset Type: </label>
                 <div class="btn-group btn-group-toggle" data-toggle="buttons" id="query_datset_type_selection">
                   <label class="btn btn-secondary active">
@@ -122,6 +145,14 @@
                 <p>
                     If the queries are uploaded in a CSV, the columns expected are 'sentence', 'head' and 'tail'. 'head' and 'tail' are optional, if you do not want to mention the head and tail the column names should not be included either. You can download sample queries from the help page.
                 </p>
+                <br/>
+                <p>
+                    If only specific entities are to be considered, then a CSV should be uploaded which has a column 'entity'. The query will only be run if the head OR the tail is or is part or an entity mentioned in the CSV file (case insensitive).
+                </p>
+                <br/>
+                <p>
+                    If results don't automatically populate in the table below please refresh the page to see them. If a result is showing with a confidence of -1, it indicates that not enough entities were detected in that sentence to do relation extraction on.
+                </p>
             </div>
         </div>
     </div>
@@ -133,7 +164,7 @@
             <div class="card-header">
                 Analysis Results
                 <button class="btn btn-secondary ml-3" id="download_results_csv">Download as CSV</button>
-                <div class="spinner-border float-right analysis_status_spinner" role="status" ></div>
+                <p class="float-right" id="num_results_indicator">Num Results: {{ num_results }}</p>
             </div>
             <div class="card-body">
                 <table class="table", id="results_table_overall">

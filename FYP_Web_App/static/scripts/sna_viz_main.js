@@ -94,6 +94,64 @@ function check_node_link_results() {
     });
 }
 
+do_edge_bundle_check_request = false;
+
+//starts the AJAX edge bundle graph generation checks
+function start_edge_bundle_success_check(json) {
+    if (json.hasOwnProperty('status')){
+        $("#edg_bundle_viz").html('Loading Visualization....');
+        alert('Generating Edge Bundling! Please Wait!');
+        setTimeout(check_edge_bundle_results, 3000);
+        do_edge_bundle_check_request = true;
+    }else{
+        alert('Error!');
+    }
+}
+
+//periodically does an AJAX get request to check the results of the edge bundle graph generation
+function check_edge_bundle_results() {
+    $.ajax({
+        url : "gen_edg_bundle/", // the endpoint
+        type : "GET", // http method
+ 
+        // handle a successful response
+        success : function(json) {
+            console.log(json); // log the returned json to the console
+            if(json.hasOwnProperty('error')){
+                do_edge_bundle_check_request = false;
+                alert('Error!');
+                return;
+            }
+            if(json.status == "finished"){
+                do_edge_bundle_check_request = false;
+                vegaEmbed('#edg_bundle_viz', edge_bundle_schema);
+            }else if(json.status == "error"){
+                do_edge_bundle_check_request = false;
+                $("#edg_bundle_viz").html('');
+                $('#error_here_yet').empty();
+                alert('Error! Please see errors table');
+                var d = new Date();
+                for(var i = 0; i < json.errors.length; i++){
+                    $('#errors_div').prepend("<p>"+d+": "+json.errors[i]+"</p>");
+                }
+                return;
+            }
+        },
+
+        // handle a non-successful response
+        error : function(xhr,errmsg,err) {
+            console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+        },
+        
+        complete: function() {
+            // Schedule the next request when the current one's complete, even if it fails
+            if(do_edge_bundle_check_request){
+                setTimeout(check_edge_bundle_results, 2000);
+            }
+        }
+    });
+}
+
 //uploads a csv dataset to the server if necessary and then runs the callback specified by the user to do further requests
 function upload_dataset_csv_then_run(callback) {
     event.preventDefault();
@@ -175,7 +233,7 @@ function gen_edge_bundling() {
         // handle a successful response
         success : function(json) {
             console.log(json); // log the returned json to the console
-            //TODO
+            start_edge_bundle_success_check(json);
         },
 
         // handle a non-successful response

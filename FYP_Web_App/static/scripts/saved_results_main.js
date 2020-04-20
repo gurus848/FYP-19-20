@@ -55,6 +55,7 @@ $('#retrieve_result_button').click(function() {
                 for(var i = 0; i < new_data.length; i++){
                     $('#result_table').append('<tr><td>'+new_data[i].sentence+'</td> <td class="align-middle">'+new_data[i].head+'</td><td class="align-middle">'+new_data[i].tail+'</td><td>'+new_data[i].pred_relation+'</td><td>'+new_data[i].pred_sentiment+'</td><td>'+new_data[i].conf.toString()+"%"+'</td></tr>');
                 }
+                $('#num_results_indicator').html('Num Results: '+new_data.length.toString());
             },
 
             // handle a non-successful response
