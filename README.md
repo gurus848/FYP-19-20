@@ -17,7 +17,9 @@ clone this repository and install the required dependencies as follows:
 #### Coreference Resolution model
 The pretrained model for the coreference model must be installed. Please run the following:
 ```
-    cd models/coref/ | export data_dir=../ | ./download_pretrained.sh <model_name>
+    cd models/coref/
+    export data_dir=../
+    ./download_pretrained.sh <model_name>
 ```
 where model name can be one of: "bert_large", "spanbert_large", etc. "bert_large" is recommended. 
 For more details, check `models/coref/README.md`
@@ -25,7 +27,8 @@ For more details, check `models/coref/README.md`
 #### FewRel model
 Please run the following to download the pretrained FewRel model for our task:
 ```
-    cd FewRel/ | .... | tar xvzf ....
+    cd FewRel/ 
+    ....
 ```
 For more details, check `FewRel/README.md`
 
