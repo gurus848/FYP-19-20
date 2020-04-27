@@ -19,10 +19,10 @@ The pretrained model for the coreference model must be installed. Please run the
 ```
     cd models/coref/
     export data_dir=../
+    ./setup_all.sh
     ./download_pretrained.sh <model_name>
 ```
-where model name can be one of: "bert_large", "spanbert_large", etc. "bert_large" is recommended. 
-For more details, check `models/coref/README.md`
+where model name can be one of: "bert_base", "bert_large" _(recommended)_, "spanbert_base", "spanbert_large". For more details, check `models/coref/README.md`
 
 ### FewRel model
 Please run the following to download the pretrained FewRel model for our task:
