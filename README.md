@@ -42,15 +42,15 @@ To run the web application, run the following:
 
 ## Other Notes
 
-Please add stuff to .gitignore as necessary.
+*Please add stuff to .gitignore as necessary.
 
-If using jupyter lab/notebook, make sure that you configure it correctly so that it uses the virtual environment's python interpreter rather than the systemwide on.
+*If using jupyter lab/notebook, make sure that you configure it correctly so that it uses the virtual environment's python interpreter rather than the systemwide on.
 
-The requirements_old.txt in the main project folder is old, use FewRel/requirements.txt instead. Need to install graphviz manually using your OS's package manager, may need to compile it from source. You can only install pygraphviz (a part of the python requirements) once you've installed graphviz.
+*The requirements_old.txt in the main project folder is old, use FewRel/requirements.txt instead. Need to install graphviz manually using your OS's package manager, may need to compile it from source. You can only install pygraphviz (a part of the python requirements) once you've installed graphviz.
 
-If the dependency library `flair` from `FewRel/requirements.txt` fails to download, try:
+*If the dependency library `flair` from `FewRel/requirements.txt` fails to download, try:
 ```
     pip install --upgrade git+https://github.com/flairNLP/flair.git
 ```
 
-The first time you run the project you will need to download the nltk 'punkt' dataset.
+*The first time you run the project you will need to download the nltk 'punkt' dataset.
