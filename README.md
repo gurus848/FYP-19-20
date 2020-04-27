@@ -8,13 +8,13 @@ Research Notes and Links Google Docs - https://docs.google.com/document/d/1820cl
 ## Setup
 Please use a Python 3.6+ virtual environment for reproducibility. 
 
-#### Environment
+### Environment
 clone this repository and install the required dependencies as follows:
 ```
     pip install -r FewRel/requirements.txt
 ```
 
-#### Coreference Resolution model
+### Coreference Resolution model
 The pretrained model for the coreference model must be installed. Please run the following:
 ```
     cd models/coref/
@@ -24,7 +24,7 @@ The pretrained model for the coreference model must be installed. Please run the
 where model name can be one of: "bert_large", "spanbert_large", etc. "bert_large" is recommended. 
 For more details, check `models/coref/README.md`
 
-#### FewRel model
+### FewRel model
 Please run the following to download the pretrained FewRel model for our task:
 ```
     cd FewRel/ 
@@ -32,7 +32,7 @@ Please run the following to download the pretrained FewRel model for our task:
 ```
 For more details, check `FewRel/README.md`
 
-#### Web Application
+### Web Application
 To run the web application, run the following:
 ```
     cd FYP_Web_App/
