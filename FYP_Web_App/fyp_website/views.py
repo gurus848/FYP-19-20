@@ -95,6 +95,9 @@ def help_page(request):
 sup_relations = []
 nk_stat = []
 def _get_sup_relations(user):
+    """
+        Finds the structure of the relation support datasets which have been uploaded.
+    """
     global sup_relations, nk_stat
     rel_support_datasets = os.listdir("temp/relation_support_datasets")  #gets a list of the relation support datasets
     rel_support_datasets = sorted([i for i in rel_support_datasets if '.csv' in i and user.username in i])
@@ -131,6 +134,9 @@ def rel_sup_csv_upload(request):
         except ValueError as e:
             os.remove(path)
             print("removed "+path)
+            print(e)
+            tb = traceback.format_exc()
+            print(tb)
             return HttpResponse(
             json.dumps({"error": str(e)}),
             content_type="application/json"
@@ -152,6 +158,7 @@ def del_rel_sup_csv(request):
         Called when a particular relation support CSV is to be deleted.
     """
     if request.method == "GET":
+        _get_sup_relations(request.user)
         dataset_index = int(request.GET.get("i"))
         os.remove("temp/relation_support_datasets/relation_support_dataset_{}_{}.csv".format(dataset_index, request.user.username))
         if len(nk_stat) > dataset_index:
@@ -254,7 +261,8 @@ def do_analysis(ckpt, queries_type, entities_type, request):
         ckpt = proj_path + "FewRel/checkpoint/" + ckpt
         if d is None or d.ckpt_path != ckpt:
             d = DetectionFramework(ckpt_path=ckpt)
-            
+        if cancel_flag[0]:
+            return
         d.clear_support_queries()
         if  len([i for i in os.listdir("temp/relation_support_datasets") if 'csv' in i and request.user.username in i]) == 0:
             raise ValueError("Please upload relation support dataset!")
@@ -285,7 +293,11 @@ def do_analysis(ckpt, queries_type, entities_type, request):
         if entities_type == "uploaded":
             d.trim_queries_based_on_entities_file(os.path.abspath("temp/entities_csv_file.csv"))
 
+        if cancel_flag[0]:
+            return
         d.detect(rt_results=results, cancel_flag=cancel_flag)
+        if cancel_flag[0]:
+            return
         src=None
         if queries_type == "csv_option":
             src = "queries_csv"
@@ -495,6 +507,9 @@ sna_viz_error_i = 0  #index from which new errors can be sent
     
 node_link_gen_status = "not_generated"
 def _gen_node_link_plotly_graph(request, dataset_type):
+    """
+        Does the generation of the node link graph in a different thread.
+    """
     global node_link_gen_status
     try:
         if node_link_gen_status == "generating":
@@ -609,6 +624,9 @@ def del_results_csv(request):
 
 edge_bundle_gen_status = "not_generated"
 def _gen_gen_edge_bundle_graph(request, dataset_type):
+    """
+        Creates the edge bundling graph in a different thread.
+    """
     global edge_bundle_gen_status
     try:
         if edge_bundle_gen_status == "generating":

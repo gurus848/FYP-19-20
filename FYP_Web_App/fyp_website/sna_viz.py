@@ -12,6 +12,9 @@ import soc_net
 # visualization related stuff will be done in this file
 
 class SNAVizualizationManager:
+    """
+        Contains functions to perform SNA and generate visualizations.
+    """
     @staticmethod
     def construct_nx_graph(request, dataset_type):
         """
@@ -176,6 +179,7 @@ class SNAVizualizationManager:
         """
         
         G, rels = SNAVizualizationManager.construct_nx_graph(request, dataset_type)
+        print(list(G))
         
         name_id_mapping = {}
         
@@ -185,13 +189,21 @@ class SNAVizualizationManager:
         negative_dependencies_dict = []
         neutral_dependencies_dict = []
         
-        for i, node in enumerate(G.nodes()):
-            if i == 0:
-                main_dict.append({'id': i, 'name': node, 'size':500})
-            else:
-                main_dict.append({'id': i, 'name': node, 'parent': 0, 'size':500})
-                
-            name_id_mapping[node] = i
+        communities = soc_net.detect_communities(G)
+        print(communities)
+        
+        i = 0
+        
+        main_dict.append({'id':0, 'name':'overall'})
+        i += 1
+        for comm in communities:
+            main_dict.append({'id': i, 'name':'comm'+str(i), 'parent':0})
+            parent_i = i
+            i += 1
+            for node in comm:
+                main_dict.append({'id': i, 'name': node, 'parent': parent_i, 'size':500})
+                name_id_mapping[node] = i
+                i += 1
         
         for edge in G.edges(data=True):
             if edge[2]['sent'] == 'POSITIVE':

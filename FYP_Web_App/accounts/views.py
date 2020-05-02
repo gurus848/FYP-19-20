@@ -13,6 +13,9 @@ from .models import UserDetails
 
 # Create your views here.
 def signup(request):
+    """
+        Managing showing the signup view and handling signup requests.
+    """
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
@@ -25,6 +28,9 @@ def signup(request):
 
 @login_required
 def account_info(request):
+    """
+        Managing the page which shows the user's account information.
+    """
     obj, _ = UserDetails.objects.get_or_create(user=request.user)
     if request.method == 'POST':
         form = UserDetailsForm(request.POST, instance=obj)

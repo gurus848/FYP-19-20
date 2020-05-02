@@ -75,7 +75,11 @@ class Detector:
         """
             Tokenizes the sentence using spacy
         """
-        return list(map(str, self.nlp_no_coref(sentence)))
+        try:
+            return list(map(str, self.nlp_no_coref(sentence)))
+        except TypeError as e:
+            print("problem sentence: '{}'".format(sentence))
+            raise e
 
 #     def get_head_tail_pairs(self,sentence):
 #         """
@@ -134,6 +138,8 @@ class Detector:
         tail = query['tail']
         fusion_set = {'word': [], 'mask': [], 'seg': []}
         tokens = self.spacy_tokenize_no_coref(query['sentence'])
+        
+        print("head: '{}' tail: '{}' sentence: '{}'".format(head, tail, query['sentence']))
         
         tokenized_head = self.spacy_tokenize_no_coref(head)
         tokenized_tail = self.spacy_tokenize_no_coref(tail)

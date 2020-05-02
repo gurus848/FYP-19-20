@@ -81,6 +81,7 @@ det_framwork = None
 
 sup_datasets = ['test_relation_support_dataset.csv', 'test_relation_support_dataset_2.csv', 'test_relation_support_dataset_3.csv', 'test_relation_support_dataset_4.csv']
 query_csvs = ['test_queries_with_head_tail.csv', 'test_queries_with_head_tail_2.csv', 'test_queries_with_head_tail_3.csv']
+query_csvs_no_head_tail = ['test_queries_without_head_tail.csv', 'test_queries_without_head_tail_2.csv', 'test_queries_without_head_tail_3.csv']
 
 print("==RELATION EXTRACTION ALONE==")
 
@@ -89,6 +90,7 @@ for si, sup_dataset_path in enumerate(sup_datasets):
         print()
         print("Support Dataset {}, Query Set {}".format(si+1, qi+1))
         start = time.time()
+        det_framwork = None
         det_framwork = MiniDetectionFramework(ck_path)
         det_framwork.load_support_file(sup_dataset_path)
         det_framwork.load_queries_csv(query_csv_path)
@@ -117,11 +119,18 @@ for si, sup_dataset_path in enumerate(sup_datasets):
 print()
 print()
 print("==FULL PIPELINE - RELATION EXTRACTION, NER, COREF, SENTIMENT==")
-for sup_dataset_path in sup_datasets:
-    for query_csv_path in query_csvs:
-        d = DetectionFramework(ck_path)
+d = DetectionFramework(ck_path)
+for si, sup_dataset_path in enumerate(sup_datasets):
+    for qi, query_csv_path in enumerate(query_csvs_no_head_tail):
+        print()
+        print("Support Dataset {}, Query Set {}".format(si + 1, qi + 1))
+
+        start_time = time.time()
+        d.clear_support_queries()
         d.load_support_files(".", sup_dataset_path)
         d.load_queries_csv(query_csv_path)
+        end_time = time.time()
+        print("Detection Framework INIT time: {} s".format(end_time - start_time))
 
         start = time.time()
         results = d.detect()

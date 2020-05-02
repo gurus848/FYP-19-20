@@ -131,9 +131,9 @@ class DataLoader:
             }
             for _, row in dft.iterrows():
                 example_info = {
-                    'sentence':unidecode(row['sentence']),
-                    'head':unidecode(row['head']),
-                    'tail':unidecode(row['tail'])
+                    'sentence':unidecode(str(row['sentence'])),
+                    'head':unidecode(str(row['head'])),
+                    'tail':unidecode(str(row['tail']))
                 }
                 info['examples'].append(example_info)
             support_relation_info.append(info)
@@ -148,7 +148,7 @@ class DataLoader:
         queries = []
         df = pd.read_csv(filepath, engine='python')
         for _, row in df.iterrows():
-            queries.append({'sentence':unidecode(row['sentence'])})
+            queries.append({'sentence':unidecode(str(row['sentence']))})
         
         return queries
     
@@ -166,7 +166,7 @@ class DataLoader:
             raise ValueError("In the provided query dataset at least one of the heads and tails doesn't match the provided sentence. Please correct the dataset and try again. The spelling and capitalization should match exactly. \n {}".format(str(e)))
         
         for _, row in df.iterrows():
-            queries.append({'sentence':unidecode(row['sentence']), 'head':unidecode(row['head']), 'tail':unidecode(row['tail'])})
+            queries.append({'sentence':unidecode(str(row['sentence'])), 'head':unidecode(str(row['head'])), 'tail':unidecode(str(row['tail']))})
         
         return queries
     
@@ -215,9 +215,10 @@ class DetectionFramework:
         else:
             q = DataLoader.load_query_csv(path)
             text = "\n".join([i['sentence'] for i in q])
+#             print("csv text: "+text)
             if self.ner_coref is None:
                 self.ner_coref = NERCoref()
-            results = self.ner_coref.generate_queries(text)
+            results = self.ner_coref.generate_queries(text, use_sent=True)
             self.queries = []
             for i in range(len(results['sentence'])):
                 self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
@@ -230,10 +231,10 @@ class DetectionFramework:
         proj_path = os.path.abspath(os.path.dirname(__file__)).split("fyp_detection_framework.py")[0]
         df = pd.read_csv("{}/nlp_code/data/extracted_article_data.csv".format(proj_path))
         text = df[df['title'] == title].iloc[0]['text']
-        text = unidecode(text)
+        text = unidecode(str(text))
         if self.ner_coref is None:
             self.ner_coref = NERCoref()
-        results = self.ner_coref.generate_queries(text)
+        results = self.ner_coref.generate_queries(text, use_sent=False)
         self.queries = []
         for i in range(len(results['sentence'])):
             self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
@@ -248,8 +249,8 @@ class DetectionFramework:
         self.queries = []
         for f in fs:
             text = open("{}/{}".format(path, f)).read()
-            text = unidecode(text)
-            results = self.ner_coref.generate_queries(text)
+            text = unidecode(str(text))
+            results = self.ner_coref.generate_queries(text, use_sent=False)
             for i in range(len(results['sentence'])):
                 self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
         
@@ -259,8 +260,8 @@ class DetectionFramework:
         """
         if self.ner_coref is None:
             self.ner_coref = NERCoref()
-        text = unidecode(text)
-        results = self.ner_coref.generate_queries(text)
+        text = unidecode(str(text))
+        results = self.ner_coref.generate_queries(text, use_sent=False)
         self.queries = []
         print(len(results['sentence']), len(results['head']), len(results['tail']))
         for i in range(len(results['sentence'])):
@@ -277,8 +278,8 @@ class DetectionFramework:
         self.queries = []
         for t in titles:
             text = df[df['title'] == t].iloc[0]['text']
-            text = unidecode(text)
-            results = self.ner_coref.generate_queries(text)
+            text = unidecode(str(text))
+            results = self.ner_coref.generate_queries(text, use_sent=False)
             for i in range(len(results['sentence'])):
                 self.queries.append({'sentence':results['sentence'][i], 'head':results['head'][i], 'tail':results['tail'][i]})
         
@@ -319,6 +320,8 @@ class DetectionFramework:
                     results.append(res)
                     if rt_results is not None:
                         rt_results.append(res)
+                    continue
+                elif q['head'] is None:
                     continue
 
                 result = self.detector.run_detection_algorithm(q, sup)

@@ -6,6 +6,9 @@ from django.contrib.auth.models import User
 
 # Create your models here.
 class UserDetails(models.Model):
+    """
+        Models some personal information about the user.
+    """
     user = models.ForeignKey(User, related_name='user_details', on_delete=models.CASCADE, primary_key=True)
     first_name = models.CharField(max_length=1000)
     last_name = models.CharField(max_length=1000)
