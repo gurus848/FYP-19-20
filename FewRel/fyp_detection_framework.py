@@ -232,6 +232,7 @@ class DetectionFramework:
         df = pd.read_csv("{}/nlp_code/data/extracted_article_data.csv".format(proj_path))
         text = df[df['title'] == title].iloc[0]['text']
         text = unidecode(str(text))
+        print(text)
         if self.ner_coref is None:
             self.ner_coref = NERCoref()
         results = self.ner_coref.generate_queries(text, use_sent=False)
@@ -348,6 +349,9 @@ class DetectionFramework:
         entities = list(i.lower() for i in df['entity'])
         new_queries = []
         for q in self.queries:
+            if q['head'] is None or q['tail'] is None:
+                new_queries.append(q)
+                continue
             for e in entities:
                 if e in q['head'].lower() or e in q['tail'].lower() or q['head'].lower() in e or q['tail'].lower() in e:
                     new_queries.append(q)

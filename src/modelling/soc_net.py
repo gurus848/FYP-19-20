@@ -330,10 +330,10 @@ def summarise_nodes(relG):
         neighbors = list(relG.neighbors(n))
         rels_of_node = dict()
         for i in neighbors:
-            if relG[n][i]['relation'] not in rels_of_node.keys():
-                rels_of_node[relG[n][i]['relation']] = [i]
+            if relG[n][i][0]['relation'] not in rels_of_node.keys():
+                rels_of_node[relG[n][i][0]['relation']] = [i]
             else:
-                rels_of_node[relG[n][i]['relation']].append(i)
+                rels_of_node[relG[n][i][0]['relation']].append(i)
         
         # create summary
         summaries[n] = f"degree: {len(neighbors)}\n"
