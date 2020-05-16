@@ -30,7 +30,7 @@ class TargetSentiment(object):
             if i in "!\"#$%&.\'()*+,-/:;<=>?@[\\]^_`{|}~":
                 c += 1
         return c
-		
+
 
     def _get_subtext(self, text, head, tail):
         """
@@ -119,5 +119,4 @@ class TargetSentiment(object):
 if __name__ == "__main__":
     ts = TargetSentiment()
     
-    text = "WASHINGTON -- The White House and lawmakers scrambled on Thursday to flesh out details of a $1 trillion economic stabilization plan to help workers and businesses weather a potentially deep recession, negotiating over the size and scope of direct payments to millions of people and aid for companies facing devastation in the coronavirus pandemic."
-    print(ts.predict(text, "WASHINGTON", "White House", threshold=0.95, return_dict=True))
+    

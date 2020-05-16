@@ -16,10 +16,11 @@ import spacy
 from itertools import combinations
 from functools import reduce
 from operator import concat
-# from flair.data import Sentence
-# from flair.models import SequenceTagger
+from flair.data import Sentence
+from flair.models import SequenceTagger
 from collections import deque
 from textblob import TextBlob
+import re
 
 
 class LazyStringSet(set):
@@ -84,8 +85,8 @@ class NERCoref(object):
             do_lower_case=False)
         
         # load NER model
-#         print(indent + " loading Flair NER model " + indent)
-#         self.ner_tagger = SequenceTagger.load('ner')
+        print(indent + " loading Flair NER model " + indent)
+        self.ner_tagger = SequenceTagger.load('ner')
 
         # load spacy dependency parser
         print(indent + " loading Spacy Dependency Parser ===" + indent)
@@ -237,7 +238,7 @@ class NERCoref(object):
         
         # detokenisation
         detokenized = ""
-        for idx, tok in enumerate(tokens[:-1]):
+        for idx, tok in enumerate(tokens):
             # don't consider [CLS] and [SEP] during detokenisation
             if space_map[idx] == -1:
                 continue
@@ -454,7 +455,6 @@ class NERCoref(object):
             Notes:
                 Assumed that the paragraphs are separated by'\n'.
         """
-        paragraphs = text.split('\n')
         # list of resolved paragraphs as string
         resolved = list() 
         # store for inter paragraph first mention of entities
@@ -482,7 +482,7 @@ class NERCoref(object):
                 
                 allowed_types (list): list of entity types
                     that must be detected. Can include any of 
-                    the entity types provided by Spacy.
+                    the entity types provided by Flair conll-2003 model.
                     
                     if None given, all types will be allowed.
 
@@ -496,60 +496,53 @@ class NERCoref(object):
         docs = [self.dep_parser(s) for s in sentences]
         
         for idx, s in enumerate(sentences):
-            ents[idx] = list()
-            for ent in docs[idx].ents:
-                if allowed_types:
-                    if ent.label_ in allowed_types:
-                        ents[idx].append((ent.text, ent.start_char, ent.end_char))
-                else:
-                    ents[idx].append((ent.text, ent.start_char, ent.end_char))
-#              
-#             sent = Sentence(s)
-#             self.ner_tagger.predict(sent)
-#             # noun chunks to replace genetives
-#             noun_chunks = list(docs[idx].noun_chunks)
-#             ents_cache = ""
+            sent = Sentence(s)
+            self.ner_tagger.predict(sent)
+            # noun chunks to replace genetives
+            noun_chunks = list(docs[idx].noun_chunks)
+            ents_cache = ""
             
-#             ents[idx] = list()
-#             for ent in sent.get_spans('ner'):
-#                 # check entity type
-#                 if disable_types and ent.tag in disable_types:
-#                     continue
+            ents[idx] = list()
+            for ent in sent.get_spans('ner'):
+                # check entity type
+                if allowed_types and ent.tag not in allowed_types:
+                    continue
                 
-#                 # avoid substring entities and appositional modifiers
-#                 ent_span = docs[idx].char_span(ent.start_pos, ent.end_pos)
-#                 if ent.text in ents_cache or str(ent_span.root) in ents_cache:
-#                     continue
+                # avoid substring entities and appositional modifiers
+                ent_span = docs[idx].char_span(ent.start_pos, ent.end_pos)
+                if ent.text in ents_cache or str(ent_span.root) in ents_cache:
+                    continue
                 
-#                 # Flair Interface
-#                 ent_str, start, end = ent.text, ent.start_pos, ent.end_pos
+                # Flair Interface
+                ent_str, start, end = ent.text, ent.start_pos, ent.end_pos
                 
-#                 # check genetive
-#                 if ent.text.endswith("'s"):
+                # check genetive
+                if ent.text.endswith("'s") or ent.text.endswith("’s"):
+                    ent_str = ent.text[:-2]
 #                     # Spacy Interface
 #                     for nc in noun_chunks:
 #                         if ent.text in str(nc) and ent.start_pos >= nc.start:
 #                             ent_str = str(nc)
 #                             start, end = nc.start, nc.end
 #                             break
+
                             
-#                 # strip punctuation from the entity name 
-#                 if ent_str[0] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~":
-#                     start += 1
-#                     ent_str = ent_str[1:]
-#                 if ent_str[-1] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~":
-#                     end -= 1
-#                     ent_str = ent_str[:-1]
-                
-#                 # append to entities
-#                 ents[idx].append((ent_str, start, end))
-#                 ents_cache += " " + ent_str
-        
-                
+                # strip punctuation from the entity name 
+                if ent_str[0] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~’“":
+                    start += 1
+                    ent_str = ent_str[1:]
+                if ent_str[-1] in "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~’“":
+                    end -= 1
+                    ent_str = ent_str[:-1]
+
+                # append to entities
+                ents[idx].append((ent_str, start, end))
+                ents_cache += " " + ent_str
+
         return ents
 
     
-    def generate_queries(self, text, use_sent=False, overlap=1, bidirectional=False, disable_types=None):
+    def generate_queries(self, text, use_sent=False, overlap=1, bidirectional=False, allowed_types=None):
         """
             Generates a pandas.DataFrame of Relation Extraction
             queries.
@@ -562,9 +555,10 @@ class NERCoref(object):
                     head and tail switched. Otherwise the order
                     is with head as the earlier occuring span in text.
                 
-                disable_types (list): list of entity types
-                    that must not be detected.
+                allowed_types (list): list of entity types
+                    that must be detected.
                     Can include 'PER', 'LOC', 'ORG', 'MISC'
+                    if set to None, all types will detected. 
 
             Returns:
                 queries (dict): dictionary of potential relations
@@ -582,7 +576,7 @@ class NERCoref(object):
             resolved = self.para_resolve(sents, overlap=overlap, markers=False) 
 
         # get entities
-        ents = self.get_entities(resolved, allowed_types=["PERSON", "ORG"])
+        ents = self.get_entities(resolved, allowed_types=allowed_types)
 
         # create queries using dataframe
         queries = {'sentence': [], 'head': [], 'tail': [], 
@@ -594,12 +588,7 @@ class NERCoref(object):
             pairs = list(combinations(set(ent_list), 2))
             
             # remove similar entity mention pairs            
-            pairs_cp = list()
-            for p in pairs:
-                try:
-                    x = p[0][0].index(p[1][0]) if len(p[0][0]) > len(p[1][0]) else p[1][0].index(p[0][0])
-                except:
-                    pairs_cp.append(p)
+            pairs_cp = [p for p in pairs if p[0][0] != p[1][0]]
 
             # sentences with no entitiess
             if len(pairs_cp) == 0:
@@ -634,7 +623,7 @@ class NERCoref(object):
 
 
 if __name__ == "__main__":
-    with open("../../../temp.txt", encoding='utf-8') as f:
+    with open("../../test/article.txt", encoding='utf-8') as f:
         text = f.read()
     
     resolver = NERCoref()

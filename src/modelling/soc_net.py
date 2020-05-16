@@ -81,22 +81,23 @@ def top_nodes(G, k=3):
     # number of neighbours connected to each other for each node
     node_clo_dict = centrality.closeness_centrality(G)
     
-    # sort by nodes by each centrality measure
-    top_k_deg_nodes = sorted(node_deg_dict.items(), key = lambda x: x[1])
-    top_k_btw_nodes = sorted(node_btw_dict.items(), key = lambda x: x[1])
-    top_k_clo_nodes = sorted(node_clo_dict.items(), key = lambda x: x[1])
+    # sort by nodes by each centrality measure in decreasing order
+    top_k_deg_nodes = sorted(node_deg_dict.items(), key = lambda x: -x[1])
+    top_k_btw_nodes = sorted(node_btw_dict.items(), key = lambda x: -x[1])
+    top_k_clo_nodes = sorted(node_clo_dict.items(), key = lambda x: -x[1])
     
     # pick the top k nodes
-    if k > 0:
-        res = (top_k_deg_nodes[-k:], top_k_btw_nodes[-k:], top_k_clo_nodes[-k:])
-    else:
-        res = (top_k_deg_nodes[::-1], top_k_btw_nodes[::-1], top_k_clo_nodes[::-1])
-    
-    # format and return the top nodes for each centrality 
     res_dict = dict()
-    res_dict["degree"] = list(zip(*res[0]))[0]
-    res_dict["betweenness"] = list(zip(*res[1]))[0]
-    res_dict["closeness"] = list(zip(*res[2]))[0]
+    if k > 0:
+        res_dict["degree"] = list(zip(*top_k_deg_nodes[:k]))[0]
+        res_dict["betweenness"] = list(zip(*top_k_btw_nodes[:k]))[0]
+        res_dict["closeness"] = list(zip(*top_k_clo_nodes[:k]))[0]
+ 
+    else:
+        res_dict["degree"] = list(zip(*top_k_deg_nodes))[0]
+        res_dict["betweenness"] = list(zip(*top_k_btw_nodes))[0]
+        res_dict["closeness"] = list(zip(*top_k_clo_nodes))[0]
+
     return res_dict
 
 
@@ -122,13 +123,13 @@ def top_edges(G, k=3):
     edge_btw_dict = centrality.edge_betweenness_centrality(G)
     
     # sort by nodes by each centrality measure
-    top_k_btw_edges = sorted(edge_btw_dict.items(), key = lambda x: x[1])
+    top_k_btw_edges = sorted(edge_btw_dict.items(), key = lambda x: -x[1])
     
     # pick the top k edges
     if k > 0:
-        res = top_k_btw_edges[-k:]
+        res = top_k_btw_edges[:k]
     else:
-        res = top_k_btw_edges[::-1]
+        res = top_k_btw_edges
     
     # format and return the top nodes for each centrality 
     res_dict = dict()
@@ -303,24 +304,44 @@ def summarise_nodes(relG):
             summaries (dict): dictionary of nodes
                 with the string summaries as values.
     """
+    """
+        Creates summaries for all nodes
+        in a given graph with the following
+        attributes:
+        1. degree
+        2. neighbours
+        3. top relation types
+        
+        Args:
+            relG (nx.Graph): graph for which
+                the summary must be created.
+                
+            Note: the edges in relG must have
+            'relation' edge attribute referring
+            to the relation type.
+        
+        Returns:
+            summaries (dict): dictionary of nodes
+                with the string summaries as values.
+    """
     summaries = dict()
     for n in relG.nodes:
         # determine the key info
         neighbors = list(relG.neighbors(n))
         rels_of_node = dict()
         for i in neighbors:
-            if relG[n][i][0]['relation'] not in rels_of_node.keys():    #0 is necessary because networkx multigraph is used
-                rels_of_node[relG[n][i][0]['relation']] = [i]
+            if relG[n][i]['relation'] not in rels_of_node.keys():
+                rels_of_node[relG[n][i]['relation']] = [i]
             else:
-                rels_of_node[relG[n][i][0]['relation']].append(i)
+                rels_of_node[relG[n][i]['relation']].append(i)
         
         # create summary
-        summaries[n] = f"degree: {len(neighbors)}\n<br>"
+        summaries[n] = f"degree: {len(neighbors)}\n"
         if len(neighbors):
-            summaries[n] += f"Relations: \n<br>"
+            summaries[n] += f"Relations: \n"
             for k, v in rels_of_node.items():
                 v_str = ", ".join([str(j) for j in v])
-                summaries[n] += f"'{k}' ({len(v)}) - {v_str}\n<br>"
+                summaries[n] += f"'{k}' ({len(v)}) - {v_str}\n"
         
     return summaries
 
