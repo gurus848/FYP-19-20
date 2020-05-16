@@ -53,7 +53,7 @@ You may have to configure your server computer's firewall to allow incoming requ
 
 ## Other Notes
 
-* If the dependency library `flair` from `FewRel/requirements.txt` fails to download, try:
+* If the dependency library `flair` from `merged_requirements.txt` fails to download, try:
 ```
     pip install --upgrade git+https://github.com/flairNLP/flair.git
 ```
